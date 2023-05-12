@@ -3,18 +3,18 @@
 -- Table: users
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    discord_id INTEGER UNIQUE NOT NULL,
+    discord_uid INTEGER UNIQUE NOT NULL,
     username TEXT NOT NULL
 );
 
--- Table: subscription_types
-CREATE TABLE IF NOT EXISTS subscription_types (
+-- Table: sub_types
+CREATE TABLE IF NOT EXISTS sub_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL
 );
 
--- Table: subscription_durations
-CREATE TABLE IF NOT EXISTS subscription_durations (
+-- Table: sub_durations
+CREATE TABLE IF NOT EXISTS sub_durations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     duration INTEGER NOT NULL,
     unit TEXT NOT NULL
@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     user_id INTEGER NOT NULL,
-    subscription_type_id INTEGER NOT NULL,
+    sub_type_id INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (subscription_type_id) REFERENCES subscription_types (id)
+    FOREIGN KEY (sub_type_id) REFERENCES sub_types (id)
 );
 
 -- Table: unique_codes
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS unique_codes (
     expiry_date TEXT NOT NULL,
     duration_id INTEGER NOT NULL,
     creator_uid INTEGER NOT NULL,
-    FOREIGN KEY (duration_id) REFERENCES subscription_durations (id),
+    FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
     FOREIGN KEY (creator_uid) REFERENCES users (id)
 );
 
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS manual_subs (
     duration_id INTEGER NOT NULL,
     creator_uid INTEGER NOT NULL,
     subscription_id INTEGER NOT NULL,
-    FOREIGN KEY (duration_id) REFERENCES subscription_durations (id),
+    FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
     FOREIGN KEY (creator_uid) REFERENCES users (id),
     FOREIGN KEY (subscription_id) REFERENCES subscriptions (id)
 );
@@ -69,16 +69,16 @@ CREATE TABLE IF NOT EXISTS manual_subs (
 
 -- Inserting Base Data
 
-INSERT INTO subscription_types (name) VALUES ('Code');
-INSERT INTO subscription_types (name) VALUES ('Manual');
+INSERT INTO sub_types (name) VALUES ('Code');
+INSERT INTO sub_types (name) VALUES ('Manual');
 
-INSERT INTO subscription_durations (duration, unit) VALUES (1, 'day');
-INSERT INTO subscription_durations (duration, unit) VALUES (3, 'day');
-INSERT INTO subscription_durations (duration, unit) VALUES (7, 'day');
-INSERT INTO subscription_durations (duration, unit) VALUES (14, 'day');
-INSERT INTO subscription_durations (duration, unit) VALUES (1, 'month');
-INSERT INTO subscription_durations (duration, unit) VALUES (3, 'month');
-INSERT INTO subscription_durations (duration, unit) VALUES (6, 'month');
-INSERT INTO subscription_durations (duration, unit) VALUES (12, 'month');
+INSERT INTO sub_durations (duration, unit) VALUES (1, 'day');
+INSERT INTO sub_durations (duration, unit) VALUES (3, 'day');
+INSERT INTO sub_durations (duration, unit) VALUES (7, 'day');
+INSERT INTO sub_durations (duration, unit) VALUES (14, 'day');
+INSERT INTO sub_durations (duration, unit) VALUES (1, 'month');
+INSERT INTO sub_durations (duration, unit) VALUES (3, 'month');
+INSERT INTO sub_durations (duration, unit) VALUES (6, 'month');
+INSERT INTO sub_durations (duration, unit) VALUES (12, 'month');
 
 -- End of file.

@@ -1,14 +1,38 @@
-from bot import Bot
+import logging
+import discord
+from discord.ext import commands
+from dotenv import load_dotenv
+import os
+from roles import VIPCommand
+import asyncio
 
-def main() -> None:
-    bot = Bot.create_instance()
-    try:
-        bot.run()  
-    except KeyboardInterrupt:
-        pass
-    finally:
-        bot.loop.run_until_complete(bot.close())
-        bot.loop.close()
 
-if __name__ == '__main__':
-    main()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+load_dotenv()
+
+TOKEN = os.environ['TOKEN']
+
+async def main():
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.guilds = True
+    intents.messages = True
+    bot = commands.Bot(command_prefix='!', intents=intents)
+
+    @bot.event
+    async def on_ready() -> None:
+        guilds_names = ', '.join([f'"{guild.name}"' for guild in bot.guilds])
+        logging.info(f'{bot.user} is now Connected and Running on Discord servers: {guilds_names}!')
+
+    @bot.command()
+    async def test(ctx):
+        await ctx.send("Test command worked!")
+
+    await bot.add_cog(VIPCommand(bot))
+    await bot.start(TOKEN)
+
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    pass
