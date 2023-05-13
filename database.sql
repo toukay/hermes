@@ -7,17 +7,11 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT NOT NULL
 );
 
--- Table: sub_types
-CREATE TABLE IF NOT EXISTS sub_types (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL
-);
-
 -- Table: sub_durations
 CREATE TABLE IF NOT EXISTS sub_durations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    duration INTEGER NOT NULL,
-    unit TEXT NOT NULL
+    duration INTEGER CHECK(duration > 0) NOT NULL,
+    unit TEXT CHECK(unit IN ('day', 'month')) NOT NULL 
 );
 
 -- Table: subscriptions
@@ -26,21 +20,19 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     user_id INTEGER NOT NULL,
-    sub_type_id INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (sub_type_id) REFERENCES sub_types (id)
 );
 
 -- Table: unique_codes
 CREATE TABLE IF NOT EXISTS unique_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT UNIQUE NOT NULL,
-    redeemed BOOLEAN NOT NULL DEFAULT 0,
+    redeemed BOOLEAN CHECK(redeemed IN (0, 1)) NOT NULL DEFAULT 0,
     expiry_date TEXT NOT NULL,
     duration_id INTEGER NOT NULL,
-    creator_uid INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
     FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
-    FOREIGN KEY (creator_uid) REFERENCES users (id)
+    FOREIGN KEY (admin_id) REFERENCES users (id)
 );
 
 -- Table: redeemed_codes
@@ -53,24 +45,34 @@ CREATE TABLE IF NOT EXISTS redeemed_codes (
     FOREIGN KEY (subscription_id) REFERENCES subscriptions (id)
 );
 
--- Table: manual_ubscriptions
-CREATE TABLE IF NOT EXISTS manual_subs (
+-- Table: grants
+CREATE TABLE IF NOT EXISTS grants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    creation_date TEXT NOT NULL,
-    duration_id INTEGER NOT NULL,
-    creator_uid INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    grant_date TEXT NOT NULL,
     subscription_id INTEGER NOT NULL,
-    FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
-    FOREIGN KEY (creator_uid) REFERENCES users (id),
-    FOREIGN KEY (subscription_id) REFERENCES subscriptions (id)
+    action_type TEXT CHECK(action_type IN ('grant', 'extend')) NOT NULL,
+    duration_id INTEGER NOT NULL,
+    original_end_date TEXT,
+    new_end_date TEXT NOT NULL
+);
+
+-- Table: revokes
+CREATE TABLE IF NOT EXISTS revokes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    revoke_date TEXT NOT NULL,
+    subscription_id INTEGER NOT NULL,
+    action_type TEXT CHECK(action_type IN ('revoke', 'reduce')) NOT NULL,
+    duration_id INTEGER NOT NULL,
+    original_end_date TEXT NOT NULL,
+    new_end_date TEXT
 );
 
 
-
 -- Inserting Base Data
-
-INSERT INTO sub_types (name) VALUES ('Code');
-INSERT INTO sub_types (name) VALUES ('Manual');
 
 INSERT INTO sub_durations (duration, unit) VALUES (1, 'day');
 INSERT INTO sub_durations (duration, unit) VALUES (3, 'day');
