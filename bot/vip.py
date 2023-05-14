@@ -446,13 +446,13 @@ class VIPCommand(commands.Cog):
                 member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور VIP الخاص بك. إذا كنت ترغب في الاحتفاظ بدور **VIP**، يرجى الاتصال بأحد مالكي خادم **MKL-Signals**.')
                 for owner in owner_members:
                     owner_name = owner.name + "#" + owner.discriminator
-                    member_embed.add_field(name=f'{owner_name}', value=f'{member.mention}', inline=False)
+                    member_embed.add_field(name=f'{owner_name}', value=f'{owner.mention}', inline=False)
                 await member.send(embed=member_embed)
 
                 admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} has had his VIP role removed after the free trial expired. If he wants to keep the VIP role, he will have to contact one of the owners of the server.')
                 for owner in owner_members:
                     owner_name = owner.name + "#" + owner.discriminator
-                    admin_embed.add_field(name=f'{owner_name}', value=f'{member.mention}', inline=False)
+                    admin_embed.add_field(name=f'{owner_name}', value=f'{owner.mention}', inline=False)
                 
                 for owner in owner_members:
                     await owner.send(embed=admin_embed)
