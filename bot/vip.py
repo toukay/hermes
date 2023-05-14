@@ -430,7 +430,8 @@ class VIPCommand(commands.Cog):
             await member.send(embed=member_embed)
 
             # loop through owners and admins and inform them
-            admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial for {member.mention}', description=f'{member.mention} has joined the server and has been given the VIP role temporarily. He will keep it for 5 minutes, after which it will be removed.')
+            member_name = member.name + "#" + member.discriminator
+            admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial for {member_name}', description=f'{member.mention} has joined the server and has been given the VIP role temporarily. He will keep it for 5 minutes, after which it will be removed.')
             for owner in owner_members:
                 await owner.send(embed=admin_embed)
             for admin in admin_members:
@@ -444,13 +445,14 @@ class VIPCommand(commands.Cog):
                 # embed = discord.Embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired. If you want to keep the VIP role, please contact one of the owners of the server.')
                 member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور VIP الخاص بك. إذا كنت ترغب في الاحتفاظ بدور **VIP**، يرجى الاتصال بأحد مالكي خادم **MKL-Signals**.')
                 for owner in owner_members:
-                    member_embed.add_field(name=f'{owner.mention}', value='',inline=False)
-
+                    owner_name = owner.name + "#" + owner.discriminator
+                    member_embed.add_field(name=f'{owner_name}', value=f'{member.mention}', inline=False)
                 await member.send(embed=member_embed)
 
-                admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member.mention}', description=f'{member.mention} has had his VIP role removed after the free trial expired. If he wants to keep the VIP role, he will have to contact one of the owners of the server.')
+                admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} has had his VIP role removed after the free trial expired. If he wants to keep the VIP role, he will have to contact one of the owners of the server.')
                 for owner in owner_members:
-                    admin_embed.add_field(name=f'{owner.mention}', value='', inline=False)
+                    owner_name = owner.name + "#" + owner.discriminator
+                    admin_embed.add_field(name=f'{owner_name}', value=f'{member.mention}', inline=False)
                 
                 for owner in owner_members:
                     await owner.send(embed=admin_embed)
@@ -464,7 +466,7 @@ class VIPCommand(commands.Cog):
                 member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور **VIP** الخاص بك ، لكنك دفعت مقابل دور **VIP** ، لذلك ستحتفظ به.')
                 await member.send(embed=member_embed)
 
-                admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member.mention}', description=f'{member.mention} has had his VIP role removed after the free trial expired, but he has paid for the VIP role, so he will keep it.')
+                admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} has had his VIP role removed after the free trial expired, but he has paid for the VIP role, so he will keep it.')
                 for owner in owner_members:
                     await owner.send(embed=admin_embed)
                 for admin in admin_members:
