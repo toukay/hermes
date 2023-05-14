@@ -3,8 +3,10 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
-from roles import VIPCommand
 import asyncio
+
+from vip import VIPCommand
+# from buttons import CheckButton
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,7 +20,9 @@ async def main():
     intents.message_content = True
     intents.guilds = True
     intents.messages = True
+    intents.members = True
     bot = commands.Bot(command_prefix='!', intents=intents)
+    vip_command = VIPCommand(bot)
 
     @bot.event
     async def on_ready() -> None:
@@ -29,7 +33,7 @@ async def main():
     async def test(ctx):
         await ctx.send("Test command worked!")
 
-    await bot.add_cog(VIPCommand(bot))
+    await bot.add_cog(vip_command)
     await bot.start(TOKEN)
 
 try:

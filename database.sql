@@ -1,30 +1,33 @@
+-- drop tables
+
+
 -- tables
 
 -- Table: users
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     discord_uid INTEGER UNIQUE NOT NULL,
     username TEXT NOT NULL
 );
 
 -- Table: sub_durations
-CREATE TABLE IF NOT EXISTS sub_durations (
+CREATE TABLE sub_durations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     duration INTEGER CHECK(duration > 0) NOT NULL,
     unit TEXT CHECK(unit IN ('day', 'month')) NOT NULL 
 );
 
 -- Table: subscriptions
-CREATE TABLE IF NOT EXISTS subscriptions (
+CREATE TABLE subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     user_id INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 -- Table: unique_codes
-CREATE TABLE IF NOT EXISTS unique_codes (
+CREATE TABLE unique_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT UNIQUE NOT NULL,
     redeemed BOOLEAN CHECK(redeemed IN (0, 1)) NOT NULL DEFAULT 0,
@@ -36,7 +39,7 @@ CREATE TABLE IF NOT EXISTS unique_codes (
 );
 
 -- Table: redeemed_codes
-CREATE TABLE IF NOT EXISTS redeemed_codes (
+CREATE TABLE redeemed_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     redemption_date text NOT NULL,
     unique_code_id INTEGER UNIQUE NOT NULL,
@@ -46,29 +49,37 @@ CREATE TABLE IF NOT EXISTS redeemed_codes (
 );
 
 -- Table: grants
-CREATE TABLE IF NOT EXISTS grants (
+CREATE TABLE grants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grant_date TEXT NOT NULL,
+    action_type TEXT CHECK(action_type IN ('grant', 'extend')) NOT NULL,
+    original_end_date TEXT,
+    new_end_date TEXT NOT NULL,
+    duration_id INTEGER NOT NULL,
+    subscription_id INTEGER NOT NULL,
     admin_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    grant_date TEXT NOT NULL,
-    subscription_id INTEGER NOT NULL,
-    action_type TEXT CHECK(action_type IN ('grant', 'extend')) NOT NULL,
-    duration_id INTEGER NOT NULL,
-    original_end_date TEXT,
-    new_end_date TEXT NOT NULL
+    FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
+    FOREIGN KEY (subscription_id) REFERENCES subscriptions (id),
+    FOREIGN KEY (admin_id) REFERENCES users (id),
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 -- Table: revokes
-CREATE TABLE IF NOT EXISTS revokes (
+CREATE TABLE revokes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    revoke_date TEXT NOT NULL,
+    action_type TEXT CHECK(action_type IN ('revoke', 'reduce')) NOT NULL,
+    original_end_date TEXT NOT NULL,
+    new_end_date TEXT,
+    duration_id INTEGER NOT NULL,
+    subscription_id INTEGER NOT NULL,
     admin_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    revoke_date TEXT NOT NULL,
-    subscription_id INTEGER NOT NULL,
-    action_type TEXT CHECK(action_type IN ('revoke', 'reduce')) NOT NULL,
-    duration_id INTEGER NOT NULL,
-    original_end_date TEXT NOT NULL,
-    new_end_date TEXT
+    FOREIGN KEY (duration_id) REFERENCES sub_durations (id),
+    FOREIGN KEY (subscription_id) REFERENCES subscriptions (id),
+    FOREIGN KEY (admin_id) REFERENCES users (id),
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 
