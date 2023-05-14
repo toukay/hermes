@@ -419,9 +419,9 @@ class VIPCommand(commands.Cog):
         if isNewUser:
             await member.add_roles(vip_role)
             # send him a private message informing him that he has been given the vip role temporarily as a free-trial, and if he paid he will get reinstaited (in an embed)
-            owner_role = discord.utils.get(member.guild.roles, name="owner")
+            owner_role = discord.utils.get(member.guild.roles, name="Owner")
             owner_members = [member for member in member.guild.members if owner_role in member.roles]
-            admin_role = discord.utils.get(member.guild.roles, name="admin")
+            admin_role = discord.utils.get(member.guild.roles, name="Admin")
             admin_members = [member for member in member.guild.members if admin_role in member.roles]
 
             guild_name = member.guild.name
