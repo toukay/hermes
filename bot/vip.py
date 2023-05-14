@@ -426,7 +426,7 @@ class VIPCommand(commands.Cog):
 
             guild_name = member.guild.name
             # embed = discord.Embed(title=f'{guild_name} VIP role free trial', description=f'You have been given the VIP role temporarily. You will keep it for 5 minutes, after which it will be removed. However, if you already paid for the VIP role, you will get reinstated automatically.')
-            member_embed = discord.Embed(title=f'تجربة مجانية لدور  MKL-Signal - VIP', description=f'لقد تم منحك دور **VIP** مؤقتًا. ستحتفظ بها لمدة 5 دقائق ، وبعد ذلك ستتم إزالتها. ومع ذلك ، إذا كنت قد دفعت بالفعل مقابل دور **VIP** ، فستتم إعادتك تلقائيًا.')
+            member_embed = discord.Embed(title=f'تجربة مجانية لدور  MKL-Signals - VIP', description=f'لقد تم منحك دور **VIP** مؤقتًا. ستحتفظ بها لمدة 5 دقائق ، وبعد ذلك ستتم إزالتها. ومع ذلك ، إذا كنت قد دفعت بالفعل مقابل دور **VIP** ، فستتم إعادتك تلقائيًا.')
             await member.send(embed=member_embed)
 
             # loop through owners and admins and inform them
@@ -442,7 +442,7 @@ class VIPCommand(commands.Cog):
                 await member.remove_roles(vip_role)
 
                 # embed = discord.Embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired. If you want to keep the VIP role, please contact one of the owners of the server.')
-                member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signal - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور VIP الخاص بك. إذا كنت ترغب في الاحتفاظ بدور **VIP**، يرجى الاتصال بأحد مالكي خادم **MKL-Signal**.')
+                member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور VIP الخاص بك. إذا كنت ترغب في الاحتفاظ بدور **VIP**، يرجى الاتصال بأحد مالكي خادم **MKL-Signals**.')
                 for owner in owner_members:
                     member_embed.add_field(name=f'{owner.mention}', inline=False)
 
@@ -461,7 +461,7 @@ class VIPCommand(commands.Cog):
                 # Remove the member from the dictionary if they are in it
                 del self.perm_vips[member.id]
                 # embed = discord.Embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired, but you have paid for the VIP role, so you will keep it.')
-                member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signal - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور **VIP** الخاص بك ، لكنك دفعت مقابل دور **VIP** ، لذلك ستحتفظ به.')
+                member_embed = discord.Embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور **VIP** الخاص بك ، لكنك دفعت مقابل دور **VIP** ، لذلك ستحتفظ به.')
                 await member.send(embed=member_embed)
 
                 admin_embed = discord.Embed(title=f'{guild_name} VIP role free trial expired for {member.mention}', description=f'{member.mention} has had his VIP role removed after the free trial expired, but he has paid for the VIP role, so he will keep it.')
