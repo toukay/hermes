@@ -421,13 +421,13 @@ class VIPCommand(commands.Cog):
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
-    # @commands.command(name="keep")
-    # async def keep(self, ctx, member: discord.Member):
-    #     # Add the member's user ID to the perm_vips dictionary
-    #     self.perm_vips[member.id] = True
+    @commands.command(name="keep")
+    async def keep(self, ctx, member: discord.Member):
+        # Add the member's user ID to the perm_vips dictionary
+        self.perm_vips[member.id] = True
 
-    #     # Inform the user that the member will keep the "VIP" role
-    #     await ctx.send(f"{member.mention} will keep the VIP role. **(Permanently! Database and other features not fully working yet)**")
+        # Inform the user that the member will keep the "VIP" role
+        await ctx.send(f"{member.mention} will keep the VIP role. **(Permanently! Database and other features not fully working yet)**")
 
     @commands.command(name="quiet")
     async def quiet(self, ctx, member: discord.Member):
