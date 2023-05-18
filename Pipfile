@@ -8,6 +8,7 @@ discord = "*"
 python-dotenv = "*"
 sqlalchemy = "*"
 aiosqlite = "*"
+tabulate = "*"
 
 [dev-packages]
 

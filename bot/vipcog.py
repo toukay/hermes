@@ -7,6 +7,7 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import asyncio
 import os
+from tabulate import tabulate
 
 import operations as ops
 import models as mdls
@@ -477,6 +478,82 @@ class VIPCommand(commands.Cog):
 
             description = f'Quiet mode has been disabled by {ctx.author.mention}. Granting, Extending, Revoking, and Reducing VIP roles will not send warning messages to the user.'
             embed = utls.success_embed(title='Quiet mode', description=description)
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(self.get_error_message()))
+
+
+    @commands.command(name="activeSubsInfo", aliases=['asinfo'])
+    async def active_subs_info(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # get all the members in the database
+            subscriptions = await ops.get_active_subscriptions()
+
+            table_data = []
+            for subscription in subscriptions:
+                status = 'Active' if subscription.active else 'Expired'
+                user = subscription.user
+                row = [user.username, subscription.start_date, subscription.end_date, status]
+                table_data.append(row)
+
+            table = tabulate(table_data, headers=["Username", "Start Date", "End Date", "Status"], tablefmt="pretty")
+
+            embed = utls.success_embed(title='Active Subscriptions', description=table)
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(self.get_error_message()))
+
+
+    @commands.command(name="userSubInfo", aliases=['usinfo'])
+    async def user_sub_info(self, ctx, member: discord.Member):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if admin exists in the database and add them if not
+            user, isNew = await utls.get_or_add_member(member)
+
+            subscriptions = user.subscriptions
+            
+            table_data = []
+            for subscription in subscriptions:
+                status = 'Active' if subscription.active else 'Expired'
+                row = [subscription.id, subscription.start_date, subscription.end_date, status]
+                table_data.append(row)
+
+            table = tabulate(table_data, headers=["Subscription ID", "Start Date", "End Date", "Status"], tablefmt="pretty")
+            embed = utls.info_embed(title="User's Subscriptions Information", description=table)
 
             await ctx.send(embed=embed)
 

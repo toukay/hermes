@@ -49,6 +49,10 @@ async def get_sub_duration(duration: int, unit: str) -> SubDuration:
 
 
 # subscription helpers
+async def get_active_subscriptions() -> list[Subscription]:
+    async with get_session() as session:
+        return await session.execute(select(Subscription).filter(Subscription.active == True)).scalars().all()
+
 async def get_active_subscription(user: User) -> Subscription:
     async with get_session() as session:
         return await session.execute(select(Subscription).filter(Subscription.user_id == user.id, Subscription.active == True)).scalar_one_or_none()
