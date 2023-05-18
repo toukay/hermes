@@ -22,6 +22,7 @@ ADMIN_USER_ID = os.environ['ADMIN_USER_ID']
 class VIPCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.bot.remove_command('help')
         self.perm_vips = {}
         self.silent = False
     
