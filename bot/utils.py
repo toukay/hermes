@@ -99,19 +99,19 @@ def get_error_message() -> str:
     return random.choice(hermes_error_messages)
 
 
-def error_embed(self, description: str) -> discord.Embed:
+def error_embed(description: str) -> discord.Embed:
     embed = discord.Embed(title='Error', description=description, color=discord.Color.red())
     return embed
 
-def success_embed(self, title: str, description: str = '') -> discord.Embed:
+def success_embed(title: str, description: str = '') -> discord.Embed:
     embed = discord.Embed(title=title, description=description, color=discord.Color.green())
     return embed
 
-def info_embed(self, title: str, description: str = '') -> discord.Embed:
+def info_embed(title: str, description: str = '') -> discord.Embed:
     embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
     return embed
 
-def warning_embed(self, title: str, description: str = '') -> discord.Embed:
+def warning_embed(title: str, description: str = '') -> discord.Embed:
     embed = discord.Embed(title=title, description=description, color=discord.Color.orange())
     return embed
 
