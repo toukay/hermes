@@ -22,6 +22,7 @@ CREATE TABLE subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
+    active BOOLEAN CHECK(active IN (0, 1)) NOT NULL DEFAULT 1,
     user_id INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );

@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 import os
 import asyncio
 
-from vip import VIPCommand
-# from buttons import CheckButton
+from bot.vipcog import VIPCommand
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

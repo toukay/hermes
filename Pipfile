@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 discord = "*"
 python-dotenv = "*"
+sqlalchemy = "*"
+aiosqlite = "*"
 
 [dev-packages]
 
