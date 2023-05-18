@@ -30,6 +30,7 @@ class VIPCommand(commands.Cog):
 
     @tasks.loop(hours=1)
     async def check_subscriptions(self):
+        logging.info('Checking subscriptions...')
         guild = self.bot.guilds[0]
         vip_role = discord.utils.get(guild.roles, name="VIP")
         owner_role = discord.utils.get(member.guild.roles, name="Owner")
@@ -37,7 +38,6 @@ class VIPCommand(commands.Cog):
         admin_role = discord.utils.get(member.guild.roles, name="Admin")
         admin_members = [member for member in member.guild.members if admin_role in member.roles]
         for member in guild.members:
-            # check if user exists in the database and add them if not
             user, isNew = await utls.get_or_add_member(member)
             
             subscription = await ops.get_active_subscription(user)
@@ -89,6 +89,45 @@ class VIPCommand(commands.Cog):
     @check_subscriptions.before_loop
     async def before_check_subs(self):
         await self.bot.wait_until_ready()  # wait until the bot logs in
+
+
+    @commands.command(name='help', help='Returns the list of commands.')
+    async def help(self, ctx):
+        embed = utls.info_embed(title='VIP Bot', description='List of commands')
+        embed.add_field(name='!help', value='Returns the list of commands.', inline=False)
+        embed.add_field(name='!ping', value='Returns the latency of the bot.', inline=False)
+        embed.add_field(name='!generate', value='Generates a unique code for a VIP subscription.', inline=False)
+        embed.add_field(name='!redeem', value='Redeems a code for a VIP subscription.', inline=False)
+        embed.add_field(name='!grant', value='Grants a VIP subscription to a user.', inline=False)
+        embed.add_field(name='!revoke', value='Revokes a VIP subscription from a user.', inline=False)
+        embed.add_field(name='!status', value='Checks the status of a VIP subscription.', inline=False)
+        embed.add_field(name='!code', value='Checks the status of a unique code.', inline=False)
+        embed.add_field(name='!listas', value='Lists all active VIP subscriptions.', inline=False)
+        embed.add_field(name='!listus', value='Lists all VIP subscriptions of a user.', inline=False)
+        embed.add_field(name='!quiet', value='Sets the bot to silent mode. No messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
+        embed.add_field(name='!unquiet', value='Resets the bot to normal mode. Messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
+        embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
+        embed.add_field(name='!rega', value='Register and add all members of the server to the database.', inline=False)
+        embed.add_field(name='!regav', value='Register and add all members of the server to the database and grant them a VIP subscription.', inline=False)
+        
+        await ctx.send(embed=embed)
+
+
+    @commands.command(name='ping', help='Returns the latency of the bot.')
+    async def ping(self, ctx):
+        await ctx.send(embed=utls.info_embed(f'Pong! {round(self.bot.latency * 1000)}ms'))
+
+    @commands.command(name='fcheck', aliases=['fc'], help='Forces the bot to check all subscriptions.')
+    @commands.has_role('Admin')
+    async def force_check(self, ctx):
+        # check if the bot is currently checking subscriptions if not force it to check
+        if not self.check_subs.is_running():
+            await ctx.send(embed=utls.info_embed('Force checking subscriptions...'))
+            await self.check_subscriptions()
+            await ctx.send(embed=utls.success_embed('Force checked all subscriptions successfully.'))
+        else:
+            await ctx.send(embed=utls.warning_embed('The bot is already checking subscriptions at the moment. Please wait until it finishes.'))
+
 
     @commands.command(name='generate', aliases=['gen', 'forge'], help='Generates a unique code for a VIP subscription.')
     async def generate_code(self, ctx, duration: str = '1m'):
@@ -487,7 +526,7 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
 
-    @commands.command(name="activeSubsInfo", aliases=['asinfo'])
+    @commands.command(name="listas", aliases=['asinfo'])
     async def active_subs_info(self, ctx):
         try:
             # make sure the command is not private
@@ -525,7 +564,7 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
 
-    @commands.command(name="userSubInfo", aliases=['usinfo'])
+    @commands.command(name="listus", aliases=['usinfo'])
     async def user_sub_info(self, ctx, member: discord.Member):
         try:
             # make sure the command is not private
@@ -563,7 +602,7 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
 
-    @commands.command(name="regAll", aliases=['avip'])
+    @commands.command(name="rega")
     async def register_all(self, ctx): # Add all members of the server to the database for the specified duration
         try:
             # make sure the command is not private
@@ -596,7 +635,7 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
 
-    @commands.command(name="regAllVips", aliases=['ravips'])
+    @commands.command(name="regav")
     async def register_all_vips(self, ctx, duration): # Add and subscribe all members of the server with a vip role to the database for the specified duration
         try:
             # make sure the command is not private
