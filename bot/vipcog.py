@@ -563,6 +563,86 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(self.get_error_message()))
 
 
+    @commands.command(name="regAll", aliases=['avip'])
+    async def register_all(self, ctx): # Add all members of the server to the database for the specified duration
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # get all the members of the server
+            members = ctx.guild.members
+
+            # add all the members to the database
+            for member in members:
+                user, isNew = await utls.get_or_add_member(member)
+
+            embed = utls.success_embed(title='All members have been added to the database successfully.')
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(self.get_error_message()))
+
+
+    @commands.command(name="regAllVips", aliases=['ravips'])
+    async def register_all_vips(self, ctx, duration): # Add and subscribe all members of the server with a vip role to the database for the specified duration
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if the duration is valid
+            duration, err_msg = await utls.validate_duration(duration)
+            if err_msg:
+                await ctx.send(embed=utls.error_embed(err_msg))
+                return
+
+            # get the vip role
+            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+
+            # get all the members with the vip role
+            members = vip_role.members
+
+            # add all the members to the database
+            for member in members:
+                user, isNew = await utls.get_or_add_member(member)
+                subscription = await ops.get_active_subscription(user)
+                if subscription is None:
+                    await ops.create_subscription(user, duration)
+
+            embed = utls.success_embed('All members with the VIP role and without a subscription have been added to the database and subscribed to the VIP role.')
+            embed.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+            embed.add_field(name='Until (end-date)', value=utls.datetime_to_string(subscription.end_date), inline=False)
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(self.get_error_message()))
+
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         # get the vip role

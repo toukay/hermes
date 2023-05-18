@@ -90,6 +90,7 @@ INSERT INTO sub_durations (duration, unit) VALUES (1, 'day');
 INSERT INTO sub_durations (duration, unit) VALUES (3, 'day');
 INSERT INTO sub_durations (duration, unit) VALUES (7, 'day');
 INSERT INTO sub_durations (duration, unit) VALUES (14, 'day');
+INSERT INTO sub_durations (duration, unit) VALUES (21, 'day');
 INSERT INTO sub_durations (duration, unit) VALUES (1, 'month');
 INSERT INTO sub_durations (duration, unit) VALUES (3, 'month');
 INSERT INTO sub_durations (duration, unit) VALUES (6, 'month');
