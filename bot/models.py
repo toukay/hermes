@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import Table, Column, ForeignKey, CheckConstraint, Integer, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -87,8 +87,11 @@ class Subscription(Base):
     def __eq__(self, other):
         return self.id == other.id
     
-    def is_active(self):
-        return self.end_date > datetime.now() and self.start_date < datetime.now() and self.active
+    def is_expired(self):
+        return self.end_date < datetime.now()
+    
+    def is_expiring_soon(self, days=1):
+        return self.end_date < datetime.now() + timedelta(days=days)
     
 
 class UniqueCode(Base):

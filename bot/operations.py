@@ -25,6 +25,10 @@ async def get_session():
 # helper functions (synchronous, with local, "throw away" sessions)
 
 # user helpers
+async def get_users() -> list[User]:
+    async with get_session() as session:
+        return await session.execute(select(User)).scalars().all()
+
 async def get_user_by_discord_uid(discord_uid: int) -> User:
     async with get_session() as session:
         return await session.execute(select(User).filter(User.discord_uid == discord_uid)).scalar_one_or_none()
@@ -84,6 +88,11 @@ async def revoke_subscription(subscription: Subscription) -> tuple[Subscription,
         subscription.active = False
         session.add(subscription)
     return subscription, original_end_date
+
+async def end_subscription(subscription: Subscription) -> None:
+    async with get_session() as session:
+        subscription.active = False
+        session.add(subscription)
 
 
 # unique code helpers

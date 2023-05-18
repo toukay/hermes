@@ -3,7 +3,7 @@ import datetime
 from datetime import timedelta
 import traceback
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import asyncio
 import os
@@ -23,6 +23,71 @@ class VIPCommand(commands.Cog):
         self.bot = bot
         self.perm_vips = {}
         self.silent = False
+    
+    def cog_unload(self):
+        self.check_subs.cancel()
+
+    @tasks.loop(hours=1)
+    async def check_subscriptions(self):
+        guild = self.bot.guilds[0]
+        vip_role = discord.utils.get(guild.roles, name="VIP")
+        owner_role = discord.utils.get(member.guild.roles, name="Owner")
+        owner_members = [member for member in member.guild.members if owner_role in member.roles]
+        admin_role = discord.utils.get(member.guild.roles, name="Admin")
+        admin_members = [member for member in member.guild.members if admin_role in member.roles]
+        for member in guild.members:
+            # check if user exists in the database and add them if not
+            user, isNew = await utls.get_or_add_member(member)
+            
+            subscription = await ops.get_active_subscription(user)
+            
+            is_subscription_expired = False
+            if subscription:
+                if subscription.is_expired():
+                    await ops.end_subscription(subscription)
+                    is_subscription_expired = True
+                        
+                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription has ended.')
+                    embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
+
+                    await member.send(embed=embed_user)
+
+                    for owner in owner_members:
+                        await owner.send(embed=embed_admin)
+
+                    for admin in admin_members:
+                        await admin.send(embed=embed_admin)
+                    
+                elif subscription.is_expiring_soon(days=1):
+                    if not discord.utils.get(member.roles, name='VIP'):
+                        await member.add_roles(vip_role)
+
+                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
+                    embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
+
+                    await member.send(embed=embed_user)
+
+                    for owner in owner_members:
+                        await owner.send(embed=embed_admin)
+
+                    for admin in admin_members:
+                        await admin.send(embed=embed_admin)
+
+            if is_subscription_expired:
+                if discord.utils.get(member.roles, name='VIP'):
+                    await member.remove_roles(vip_role)
+            else:
+                if not discord.utils.get(member.roles, name='VIP'):
+                    await member.add_roles(vip_role)
+                
+
+    # @tasks.loop(hours=1)
+    # async def check_codes(self):
+    #     pass
+
+    @check_subscriptions.before_loop
+    async def before_check_subs(self):
+        await self.bot.wait_until_ready()  # wait until the bot logs in
 
     @commands.command(name='generate', aliases=['gen', 'forge'], help='Generates a unique code for a VIP subscription.')
     async def generate_code(self, ctx, duration: str = '1m'):
@@ -252,7 +317,7 @@ class VIPCommand(commands.Cog):
                 
 
             quiet_mode = 'Enabled, member will not be notified' if self.silent else 'Disabled, member will be notified'
-            if duration and subscription.is_active():
+            if duration and not subscription.is_expired():
                 embed_admin = utls.success_embed(title='Duration Reduce', description=f'Member **{member.name}**\'s subscription duration has been reduced:')
                 embed_admin.add_field(name='By (duration):', value=f"{sub_duration.duration} {sub_duration.unit}{'s' if sub_duration.duration > 1 else ''}", inline=False)
                 embed_admin.add_field(name='From (old end-date)', value=utls.datetime_to_string(original_end_date), inline=False)
