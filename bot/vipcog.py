@@ -46,7 +46,7 @@ class VIPCommand(commands.Cog):
         logging.info('Cleaning pagination sessions...')
         self.pagination_sessions = {}
 
-    @tasks.loop(days=1)
+    @tasks.loop(hours=24)
     async def backup_db(self):
         self.backup_in_progress = True
         logging.info('Backing up database...')
