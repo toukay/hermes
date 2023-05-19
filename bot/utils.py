@@ -115,6 +115,18 @@ def warning_embed(title: str, description: str = '') -> discord.Embed:
     embed = discord.Embed(title=title, description=description, color=discord.Color.orange())
     return embed
 
+def special_embed(title: str, description: str = '') -> discord.Embed:
+    embed = discord.Embed(title=title, description=description, color=discord.Color.gold())
+    return embed
+
+def advanced_embed(title: str, description: str = '') -> discord.Embed:
+    embed = discord.Embed(title=title, description=description, color=discord.Color.purple())
+    return embed
+
+def owner_embed(title: str, description: str = '') -> discord.Embed:
+    embed = discord.Embed(title=title, description=description, color=discord.Color.magenta())
+    return embed
+
 # method to convert datetime to string
 def datetime_to_string(dt: datetime) -> str:
     return dt.strftime(DATETIME_FORMAT)

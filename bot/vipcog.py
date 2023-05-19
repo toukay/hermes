@@ -114,24 +114,42 @@ class VIPCommand(commands.Cog):
 
     @commands.command(name='help', help='Returns the list of commands.')
     async def help(self, ctx):
-        embed = utls.info_embed(title='VIP Bot', description='List of commands')
-        embed.add_field(name='!help', value='[all] Returns the list of commands.', inline=False)
-        embed.add_field(name='!ping', value='[all] Returns the latency of the bot.', inline=False)
-        embed.add_field(name='!generate', value='[admin only] Generates a unique code for a VIP subscription.', inline=False)
-        embed.add_field(name='!redeem', value='[user only] Redeems a code for a VIP subscription.', inline=False)
-        embed.add_field(name='!grant', value='[admin only] Grants a VIP subscription to a user.', inline=False)
-        embed.add_field(name='!revoke', value='[admin only] Revokes a VIP subscription from a user.', inline=False)
-        embed.add_field(name='!status', value='[user only] Checks the status of a VIP subscription.', inline=False)
-        embed.add_field(name='!ustatus', value='[admin only] Checks the status of a user.', inline=False)
-        embed.add_field(name='!code', value='[all] Checks the status of a unique code.', inline=False)
-        embed.add_field(name='!listas', value='[admin only] Lists all active VIP subscriptions.', inline=False)
-        embed.add_field(name='!listu', value='[admin only] Lists all users.', inline=False)
-        embed.add_field(name='!listus', value='[admin only] Lists all VIP subscriptions of a user.', inline=False)
-        embed.add_field(name='!quiet', value='[admin only] Sets the bot to silent mode. No messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
-        embed.add_field(name='!unquiet', value='[admin only] Resets the bot to normal mode. Messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
-        embed.add_field(name='!fcheck', value='[admin only] Force Checks all VIP subscriptions.', inline=False)
-        embed.add_field(name='!rega', value='[admin only] Register and add all members of the server to the database.', inline=False)
-        embed.add_field(name='!regav', value='[admin only] Register and add all members with a VIP role to the database and grant them a VIP subscription.', inline=False)
+        embed = utls.info_embed(title='VIP Bot', description='List of User commands')
+        embed.add_field(name='!help', value='Returns the list of commands.', inline=False)
+        embed.add_field(name='!ping', value='Returns the latency of the bot.', inline=False)
+        embed.add_field(name='!redeem <code>', value='Redeems a code for a VIP subscription.', inline=False)
+        embed.add_field(name='!status', value='Checks the status of a VIP subscription.', inline=False)
+        embed.add_field(name='!code <code>', value='Checks the status of a unique code.', inline=False)
+        
+        await ctx.send(embed=embed)
+
+    @commands.command(name='help1', help='Returns the list of Admin commands.')
+    async def help(self, ctx):
+        embed = utls.owner_embed(title='VIP Bot', description='List of Admin commands')
+        embed.add_field(name='!help', value='Returns the list of User commands.', inline=False)
+        embed.add_field(name='!help1', value='Returns the list of Admin commands.', inline=False)
+        embed.add_field(name='!help2', value='Returns the list of Advanced Admin commands.', inline=False)
+        embed.add_field(name='!ping', value='Returns the latency of the bot.', inline=False)
+        embed.add_field(name='!generate', value='Generates a unique code for a VIP subscription.', inline=False)
+        embed.add_field(name='!grant <@User> <duration>', value='Grants a VIP subscription to a user. Duration is optional.', inline=False)
+        embed.add_field(name='!revoke <@User> <duration>', value='Revokes a VIP subscription from a user. Duration is optional.', inline=False)
+        embed.add_field(name='!ustatus <@User>', value='Checks the status of a user.', inline=False)
+        embed.add_field(name='!code <code>', value='Checks the status of a unique code.', inline=False)
+        embed.add_field(name='!quiet', value='Sets the bot to silent mode. No messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
+        embed.add_field(name='!unquiet', value='Resets the bot to normal mode. Messages will be sent to members who get granted or revoked VIP subscriptions.', inline=False)
+        
+        await ctx.send(embed=embed)
+
+    @commands.command(name='help2', help='Returns the list of Advanced Admin commands.')
+    async def help(self, ctx):
+        embed = utls.advanced_embed(title='VIP Bot', description='List of Advanced Admin commands')
+        embed.add_field(name='!listas', value='Lists all active VIP subscriptions.', inline=False)
+        embed.add_field(name='!listu', value='Lists all users.', inline=False)
+        embed.add_field(name='!listus <@User>', value='Lists all VIP subscriptions of a user.', inline=False)
+        embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
+        embed.add_field(name='!rega', value='Register and add all members of the server to the database.', inline=False)
+        embed.add_field(name='!regav', value='Register and add all members with a VIP role to the database and grant them a VIP subscription.', inline=False)
+        embed.add_field(name='!massrv', value='Mass mass remove all vip roles.', inline=False)
         
         await ctx.send(embed=embed)
 
@@ -878,6 +896,83 @@ class VIPCommand(commands.Cog):
                 embed = utls.success_embed('All members with the VIP role already have a subscription.')
 
             await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+
+
+    @commands.command(name="massrv", aliases=['msrv'], help="[admin only] mass remove all vip roles")
+    async def mass_remove_vip_roles(self, ctx): # Remove the vip role from all members of the server
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # get the vip role
+            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+
+            # get all the members with the vip role
+            members = vip_role.members
+
+            # remove the vip role from all the members
+            for member in members:
+                await member.remove_roles(vip_role)
+
+            embed = utls.success_embed('All members with the VIP role have been removed from the role.')
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+
+
+    @commands.command(name="massrs", aliases=['msrv'], help="[admin only] mass remove all vip subscriptions")
+    async def mass_remove_vip_roles(self, ctx): # Remove the vip role from all members of the server
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # get the vip role
+            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+
+            # get all the members with the vip role
+            members = vip_role.members
+
+            # remove the vip role from all the members and their active subscriptions
+            for member in members:
+                await member.remove_roles(vip_role)
+                user, isNew = await utls.get_or_add_member(member)
+                subscription = await ops.get_active_subscription(user)
+                if subscription is not None:
+                    if not subscription.is_expired():
+                        await ops.revoke_subscription(subscription)
+                    else:
+                        await ops.end_subscription(subscription)
+
+            embed = utls.success_embed('All members with the VIP role have been removed from the role and their active subscriptions have been ended.')
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
