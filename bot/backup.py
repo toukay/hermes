@@ -148,7 +148,6 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # create backup folder if it doesn't exist
     if not os.path.exists(BACKUP_FOLDER):
         os.makedirs(BACKUP_FOLDER)
     main(args)

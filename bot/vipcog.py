@@ -30,6 +30,7 @@ class VIPCommand(commands.Cog):
         self.silent = False
         self.task_check_subscriptions.start()
         self.sub_check_in_progress = False
+        self.backup_in_progress = False
         
     
     def cog_unload(self):
@@ -40,67 +41,22 @@ class VIPCommand(commands.Cog):
         pass
         # await self.check_subscriptions()
     
-    async def check_subscriptions(self) -> tuple[int, int]:
-        self.sub_check_in_progress = True
-        logging.info('Checking subscriptions...')
-        guild = self.bot.guilds[0]
-        vip_role = discord.utils.get(guild.roles, name="VIP")
-        owner_role = discord.utils.get(guild.roles, name="Owner")
-        owner_members = owner_role.members
-        admin_role = discord.utils.get(guild.roles, name="Admin")
-        admin_members = admin_role.members
-        records_updated = 0
-        for member in guild.members:
-            print(f'Checking {member.display_name}...', flush=True)
-            user, isNew = await utls.get_or_add_member(member)
-            
-            subscription = await ops.get_active_subscription(user)
-            
-            is_subscription_expired = False
-            if subscription:
-                if subscription.is_expired():
-                    await ops.end_subscription(subscription)
-                    # await member.remove_roles(vip_role)
-                    records_updated += 1
-                    is_subscription_expired = True
-                        
-                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription has ended.')
-                    embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
-
-                    await member.send(embed=embed_user)
-
-                    for owner in owner_members:
-                        await owner.send(embed=embed_admin)
-
-                    for admin in admin_members:
-                        await admin.send(embed=embed_admin)
-                    
-                elif subscription.is_expiring_soon(days=1):
-
-                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
-                    embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
-
-                    await member.send(embed=embed_user)
-
-                    for owner in owner_members:
-                        await owner.send(embed=embed_admin)
-
-                    for admin in admin_members:
-                        await admin.send(embed=embed_admin)
-
-            if is_subscription_expired:
-                pass
-                # await member.remove_roles(vip_role)
-                
-        
-        logging.info('Finished checking subscriptions.')
-        self.sub_check_in_progress = False
-        return len(guild.members), records_updated
-    
     @tasks.loop(minutes=10)
     async def clear_pagination_sessions(self):
         logging.info('Cleaning pagination sessions...')
         self.pagination_sessions = {}
+
+    @tasks.loop(days=1)
+    async def backup_db(self):
+        self.backup_in_progress = True
+        logging.info('Backing up database...')
+        backup_file, err_msg = await ops.backup_database()
+        self.backup_in_progress = False
+        if err_msg:
+            logging.error(err_msg)
+            await self.send_private_error_notification(error_message=err_msg)
+            return
+        logging.info(f'Database backed up to {backup_file}')
                 
 
     # @tasks.loop(hours=1)
@@ -146,10 +102,11 @@ class VIPCommand(commands.Cog):
         embed.add_field(name='!listas', value='Lists all active VIP subscriptions.', inline=False)
         embed.add_field(name='!listu', value='Lists all users.', inline=False)
         embed.add_field(name='!listus <@User>', value='Lists all VIP subscriptions of a user.', inline=False)
-        embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
         embed.add_field(name='!rega', value='Register and add all members of the server to the database.', inline=False)
         embed.add_field(name='!regav', value='Register and add all members with a VIP role to the database and grant them a VIP subscription.', inline=False)
         embed.add_field(name='!massrv', value='Mass mass remove all vip roles.', inline=False)
+        embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
+        embed.add_field(name='!fbackup', value='Force Backups the database.', inline=False)
         
         await ctx.send(embed=embed)
 
@@ -177,6 +134,25 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=embed)
         else:
             await ctx.send(embed=utls.warning_embed('The bot is already checking subscriptions at the moment. Please wait until it finishes.'))
+
+
+    @commands.command(name='fbackup', aliases=['fb'], help='Forces the bot to backup the database.')
+    async def force_backup(self, ctx):
+        # check if the user has the role of admin or owner
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+            return
+        # record time spent backing up database
+        if not self.backup_in_progress:
+            start_time = time.time()
+            await ctx.send(embed=utls.info_embed('Force backing up database...'))
+            await ops.backup_database()
+            end_time = time.time()
+            embed=utls.success_embed(f'Force backed up database successfully.')
+            embed.add_field(name='Time spent:', value=f'{round(end_time - start_time, 2)} seconds', inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(embed=utls.warning_embed('The bot is already backing up the database at the moment. Please wait until it finishes.'))
 
 
     @commands.command(name='generate', aliases=['gen', 'forge'], help='Generates a unique code for a VIP subscription.')
@@ -1096,7 +1072,65 @@ class VIPCommand(commands.Cog):
     async def on_error(self, event, *args, **kwargs):
         await self.send_private_error_notification("on_error", event, traceback.format_exc())
         
-    async def send_private_error_notification(self, username: str, command: str, error_message: str):
+    async def send_private_error_notification(self, username: str = '', command: str = '', error_message: str = ''):
         owner_id = ADMIN_USER_ID
         owner = await self.bot.fetch_user(owner_id)
         await owner.send(embed=utls.error_embed(f"An error occurred (u: {username}, c: {command}): {error_message}"))
+
+
+    async def check_subscriptions(self) -> tuple[int, int]:
+        self.sub_check_in_progress = True
+        logging.info('Checking subscriptions...')
+        guild = self.bot.guilds[0]
+        vip_role = discord.utils.get(guild.roles, name="VIP")
+        owner_role = discord.utils.get(guild.roles, name="Owner")
+        owner_members = owner_role.members
+        admin_role = discord.utils.get(guild.roles, name="Admin")
+        admin_members = admin_role.members
+        records_updated = 0
+        for member in guild.members:
+            print(f'Checking {member.display_name}...', flush=True)
+            user, isNew = await utls.get_or_add_member(member)
+            
+            subscription = await ops.get_active_subscription(user)
+            
+            is_subscription_expired = False
+            if subscription:
+                if subscription.is_expired():
+                    await ops.end_subscription(subscription)
+                    # await member.remove_roles(vip_role)
+                    records_updated += 1
+                    is_subscription_expired = True
+                        
+                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription has ended.')
+                    embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
+
+                    await member.send(embed=embed_user)
+
+                    for owner in owner_members:
+                        await owner.send(embed=embed_admin)
+
+                    for admin in admin_members:
+                        await admin.send(embed=embed_admin)
+                    
+                elif subscription.is_expiring_soon(days=1):
+
+                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
+                    embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
+
+                    await member.send(embed=embed_user)
+
+                    for owner in owner_members:
+                        await owner.send(embed=embed_admin)
+
+                    for admin in admin_members:
+                        await admin.send(embed=embed_admin)
+
+            if is_subscription_expired:
+                pass
+                # await member.remove_roles(vip_role)
+                
+        
+        logging.info('Finished checking subscriptions.')
+        self.sub_check_in_progress = False
+        return len(guild.members), records_updated

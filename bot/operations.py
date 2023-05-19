@@ -3,6 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from contextlib import asynccontextmanager
+import sqlite3
+import shutil
+import os
+import gzip
 
 from models import User, SubDuration, Subscription, UniqueCode, RedeemedCode, Grant, Revoke
 
@@ -191,3 +195,32 @@ async def add_revoke(revoke: Revoke) -> None:
         session.add(revoke)
         await session.commit()
 
+
+# misc helpers
+async def backup_database() -> tuple[str, str]:
+    # Get the current date
+    current_date = datetime.now().strftime("%Y%m%d")
+
+    # Create the backup folder if it does not exist
+    backup_folder = "./backup"
+    os.makedirs(backup_folder, exist_ok=True)
+
+    # Specify the source database and backup database file names
+    source_database = "database.db"
+    backup_database = f"{backup_folder}/backup_database_{current_date}.db"
+
+    try:
+        # Copy the source database file to the backup database file
+        shutil.copyfile(source_database, backup_database)
+
+        # Compress the backup database file
+        with open(backup_database, 'rb') as f_in:
+            with gzip.open(f"{backup_database}.gz", 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # Remove the uncompressed backup file
+        os.remove(backup_database)
+    except Exception as e:
+        return None, f"Error backing up database: {e}"
+
+    return f"{backup_database}.gz", None
