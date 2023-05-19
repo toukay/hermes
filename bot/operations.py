@@ -106,13 +106,13 @@ async def create_subscription(user: User, duration: SubDuration) -> Subscription
         session.add(subscription)
         await session.commit()
     return subscription
-    
-    # # Refetch the Subscription object from the database
-    # async with get_session() as session:
-    #     result = await session.execute(select(Subscription).where(Subscription.id == subscription.id))
-    #     subscription = result.scalar_one()
 
-    
+async def set_create_subscription(user: User, start_date: datetime, duration_days: int) -> Subscription:
+    async with get_session() as session:
+        subscription = Subscription(start_date, start_date + timedelta(days=duration_days), user)
+        session.add(subscription)
+        await session.commit()
+    return subscription
 
 async def reduce_subscription(subscription: Subscription, duration: SubDuration) -> tuple[Subscription, datetime]:
     async with get_session() as session:

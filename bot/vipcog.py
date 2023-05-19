@@ -57,7 +57,6 @@ class VIPCommand(commands.Cog):
             await self.send_private_error_notification(error_message=err_msg)
             return
         logging.info(f'Database backed up to {backup_file}')
-                
 
     # @tasks.loop(hours=1)
     # async def check_codes(self):
@@ -68,7 +67,7 @@ class VIPCommand(commands.Cog):
         await self.bot.wait_until_ready()  # wait until the bot logs in
 
 
-    @commands.command(name='help', help='Returns the list of commands.')
+    @commands.command(name='help', help='Returns the list of User commands.')
     async def help(self, ctx):
         embed = utls.info_embed(title='VIP Bot', description='List of User commands')
         embed.add_field(name='!help', value='Returns the list of commands.', inline=False)
@@ -107,6 +106,7 @@ class VIPCommand(commands.Cog):
         embed.add_field(name='!massrv', value='Mass mass remove all vip roles.', inline=False)
         embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
         embed.add_field(name='!fbackup', value='Force Backups the database.', inline=False)
+        embed.add_field(name='!setsub <@User> <start date> <duration>', value='Sets a VIP subscription for a user. Duration is optional.', inline=False)
         
         await ctx.send(embed=embed)
 
@@ -146,7 +146,9 @@ class VIPCommand(commands.Cog):
         if not self.backup_in_progress:
             start_time = time.time()
             await ctx.send(embed=utls.info_embed('Force backing up database...'))
+            logging.info('Forcing backup...')
             await ops.backup_database()
+            logging.info('Backup complete.')
             end_time = time.time()
             embed=utls.success_embed(f'Force backed up database successfully.')
             embed.add_field(name='Time spent:', value=f'{round(end_time - start_time, 2)} seconds', inline=False)
@@ -762,6 +764,51 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(utls.get_error_message()))
 
     
+    @commands.command(name="setsub", help="[admin only] set unregistered VIP subscription by providing start date and duration")
+    async def set_subscription(self, ctx, member: discord.Member, start_date: str, duration_days: int):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if admin exists in the database and add them if not
+            user, isNew = await utls.get_or_add_member(member)
+
+            # check if the user already has an active subscription
+            subscription = await ops.get_active_subscription(user)
+            if subscription:
+                await ctx.send(embed=utls.error_embed('This user already has an active subscription.'))
+                return
+
+            # convert subscription start date to datetime
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+
+            # check if the duration is valid
+            if duration_days < 1:
+                await ctx.send(embed=utls.error_embed('Duration days must be greater than 0.'))
+                return
+
+            # create the subscription
+            subscription = await ops.create_subscription(user, start_date, duration_days)
+
+            # send success message
+            await ctx.send(embed=utls.success_embed(f'Subscription created for {user.username}.'))
+        
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+
+    
     # @commands.command(name="listusall", aliases=['usinfoall'])
     # async def user_sub_info_all(self, ctx, member: discord.Member): # list all grants, extentions, revokes, reductions, and redeemed codes assocuiated with a user's active subscription
     #     try:
@@ -1089,7 +1136,6 @@ class VIPCommand(commands.Cog):
         admin_members = admin_role.members
         records_updated = 0
         for member in guild.members:
-            print(f'Checking {member.display_name}...', flush=True)
             user, isNew = await utls.get_or_add_member(member)
             
             subscription = await ops.get_active_subscription(user)
