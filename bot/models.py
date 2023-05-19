@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy import Table, Column, ForeignKey, CheckConstraint, Integer, String, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy import event
 
 Base = declarative_base()
@@ -31,7 +30,7 @@ class User(Base):
         return self.username
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
 
 class SubDuration(Base):
@@ -56,7 +55,7 @@ class SubDuration(Base):
         return f'SubDuration(id={self.id}, duration={self.duration}, unit={self.unit})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
 
 class Subscription(Base):
@@ -85,10 +84,16 @@ class Subscription(Base):
         return f'Subscription(id={self.id}, start_date={self.start_date}, end_date={self.end_date}, user_id={self.user_id})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
     def is_expired(self):
         return self.end_date < datetime.now()
+    
+    def is_future(self):
+        return self.start_date > datetime.now()
+
+    def is_now_active(self):
+        return self.start_date <= datetime.now() <= self.end_date
     
     def is_expiring_soon(self, days=1):
         return self.end_date < datetime.now() + timedelta(days=days)
@@ -108,9 +113,8 @@ class UniqueCode(Base):
     admin = relationship('User', foreign_keys=[admin_id], back_populates='unique_codes')
     redeemed_code = relationship('RedeemedCode', foreign_keys='RedeemedCode.unique_code_id', back_populates='unique_code')
 
-    def __init__(self, code, redeemed, expiry_date, duration, admin):
+    def __init__(self, code, expiry_date, duration, admin):
         self.code = code
-        self.redeemed = redeemed
         self.expiry_date = expiry_date
         self.duration = duration
         self.admin = admin
@@ -122,7 +126,7 @@ class UniqueCode(Base):
         return f'UniqueCode(id={self.id}, code={self.code}, redeemed={self.redeemed}, expiry_date={self.expiry_date}, duration_id={self.duration_id}, admin_id={self.admin_id})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
     def is_expired(self):
         return self.expiry_date < datetime.now()
@@ -154,7 +158,7 @@ class RedeemedCode(Base):
         return f'RedeemedCode(id={self.id}, redemption_date={self.redemption_date}, unique_code_id={self.unique_code_id}, subscription_id={self.subscription_id})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
 
 class Grant(Base):
@@ -175,7 +179,7 @@ class Grant(Base):
     admin = relationship('User', foreign_keys=[admin_id], back_populates='admin_grants')
     user = relationship('User', foreign_keys=[user_id], back_populates='user_grants')
 
-    def __init__(self, grant_date, action_type, original_end_date, new_end_date, duration, subscription, admin, user):
+    def __init__(self, grant_date, original_end_date, new_end_date, duration, subscription, admin, user, action_type='grant'):
         self.grant_date = grant_date
         self.action_type = action_type
         self.original_end_date = original_end_date
@@ -192,7 +196,7 @@ class Grant(Base):
         return f'Grant(id={self.id}, grant_date={self.grant_date}, action_type={self.action_type}, original_end_date={self.original_end_date}, new_end_date={self.new_end_date}, duration_id={self.duration_id}, subscription_id={self.subscription_id}, admin_id={self.admin_id}, user_id={self.user_id})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id
     
 
 class Revoke(Base):
@@ -203,7 +207,7 @@ class Revoke(Base):
     action_type = Column(String, CheckConstraint("action_type IN ('revoke', 'reduce')"), nullable=False)
     original_end_date = Column(DateTime, nullable=False)
     new_end_date = Column(DateTime, nullable=False)
-    duration_id = Column(Integer, ForeignKey('sub_durations.id'), nullable=False)
+    duration_id = Column(Integer, ForeignKey('sub_durations.id'), nullable=True)
     subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
     admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -213,7 +217,7 @@ class Revoke(Base):
     admin = relationship('User', foreign_keys=[admin_id], back_populates='admin_revokes')
     user = relationship('User', foreign_keys=[user_id], back_populates='user_revokes')
 
-    def __init__(self, revoke_date, action_type, original_end_date, new_end_date, duration, subscription, admin, user):
+    def __init__(self, revoke_date, original_end_date, new_end_date, subscription, admin, user, duration = None, action_type='revoke'):
         self.revoke_date = revoke_date
         self.action_type = action_type
         self.original_end_date = original_end_date
@@ -230,4 +234,4 @@ class Revoke(Base):
         return f'Revokes(id={self.id}, revoke_date={self.revoke_date}, action_type={self.action_type}, original_end_date={self.original_end_date}, new_end_date={self.new_end_date}, duration_id={self.duration_id}, subscription_id={self.subscription_id}, admin_id={self.admin_id}, user_id={self.user_id})'
     
     def __eq__(self, other):
-        return self.id == other.id
+        return type(self) == type(other) and self.id == other.id

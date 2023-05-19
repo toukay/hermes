@@ -9,6 +9,8 @@ python-dotenv = "*"
 sqlalchemy = "*"
 aiosqlite = "*"
 tabulate = "*"
+pytest = "*"
+pytest-asyncio = "*"
 
 [dev-packages]
 

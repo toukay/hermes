@@ -73,7 +73,7 @@ CREATE TABLE revokes (
     action_type TEXT CHECK(action_type IN ('revoke', 'reduce')) NOT NULL,
     original_end_date TEXT NOT NULL,
     new_end_date TEXT,
-    duration_id INTEGER NOT NULL,
+    duration_id INTEGER,
     subscription_id INTEGER NOT NULL,
     admin_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,

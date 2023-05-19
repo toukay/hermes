@@ -61,6 +61,11 @@ async def get_sub_duration(duration: int, unit: str) -> SubDuration:
         result = await session.execute(select(SubDuration).filter(SubDuration.duration == duration, SubDuration.unit == unit))
     return result.scalar_one_or_none()
 
+async def get_sub_duration_by_code(code: UniqueCode) -> SubDuration:
+    async with get_session() as session:
+        result = await session.execute(select(SubDuration).filter(SubDuration.id == code.duration_id))
+    return result.scalar_one_or_none()
+
 
 # subscription helpers
 async def get_active_subscriptions() -> list[Subscription]:
@@ -110,6 +115,9 @@ async def create_subscription(user: User, duration: SubDuration) -> Subscription
 async def set_create_subscription(user: User, start_date: datetime, duration_days: int) -> Subscription:
     async with get_session() as session:
         subscription = Subscription(start_date, start_date + timedelta(days=duration_days), user)
+        # check the start date is not in the past or in the future and change subscription.active accordingly
+        if subscription.start_date < datetime.now() or subscription.start_date > datetime.now():
+            subscription.active = False
         session.add(subscription)
         await session.commit()
     return subscription
@@ -159,7 +167,7 @@ async def add_unique_code(unique_code: UniqueCode) -> None:
 async def delete_expired_unique_codes() -> None:
     async with get_session() as session:
         expired_codes = await session.execute(
-            select(UniqueCode).filter(UniqueCode.redeemed == False, UniqueCode.expiration_date < datetime.now())
+            select(UniqueCode).filter(UniqueCode.redeemed == False, UniqueCode.expiry_date < datetime.now())
         )
         for code in expired_codes.scalars():
             await session.delete(code)

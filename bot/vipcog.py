@@ -79,7 +79,7 @@ class VIPCommand(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='help1', help='Returns the list of Admin commands.')
-    async def help(self, ctx):
+    async def help1(self, ctx):
         embed = utls.owner_embed(title='VIP Bot', description='List of Admin commands')
         embed.add_field(name='!help', value='Returns the list of User commands.', inline=False)
         embed.add_field(name='!help1', value='Returns the list of Admin commands.', inline=False)
@@ -96,7 +96,7 @@ class VIPCommand(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='help2', help='Returns the list of Advanced Admin commands.')
-    async def help(self, ctx):
+    async def help2(self, ctx):
         embed = utls.advanced_embed(title='VIP Bot', description='List of Advanced Admin commands')
         embed.add_field(name='!listas', value='Lists all active VIP subscriptions.', inline=False)
         embed.add_field(name='!listu', value='Lists all users.', inline=False)
@@ -106,7 +106,7 @@ class VIPCommand(commands.Cog):
         embed.add_field(name='!massrv', value='Mass mass remove all vip roles.', inline=False)
         embed.add_field(name='!fcheck', value='Force Checks all VIP subscriptions.', inline=False)
         embed.add_field(name='!fbackup', value='Force Backups the database.', inline=False)
-        embed.add_field(name='!setsub <@User> <start date> <duration>', value='Sets a VIP subscription for a user. Duration is optional.', inline=False)
+        embed.add_field(name='!setsub <@User> <start date> <duration in days>', value='Sets a VIP subscription for a user. Duration is optional.', inline=False)
         
         await ctx.send(embed=embed)
 
@@ -119,7 +119,7 @@ class VIPCommand(commands.Cog):
     async def force_check(self, ctx):
         # check if the user has the role of admin or owner
         if not ctx.author.guild_permissions.administrator:
-            await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+            await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
             return
         # record time spent checking subscriptions
         if not self.sub_check_in_progress:
@@ -140,7 +140,7 @@ class VIPCommand(commands.Cog):
     async def force_backup(self, ctx):
         # check if the user has the role of admin or owner
         if not ctx.author.guild_permissions.administrator:
-            await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+            await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
             return
         # record time spent backing up database
         if not self.backup_in_progress:
@@ -162,12 +162,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
 
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if user exists in the database and add them if not
@@ -176,7 +176,7 @@ class VIPCommand(commands.Cog):
             # check if the duration is valid
             duration, err_msg = await utls.validate_duration(duration)
             if err_msg:
-                await ctx.send(embed=utls.error_embed(err_msg))
+                await ctx.send(embed=utls.warning_embed(err_msg))
                 return
 
             # generate a unique code
@@ -208,12 +208,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner (amins can not claim codes)
             if ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if user exists in the database and add them if not
@@ -222,11 +222,11 @@ class VIPCommand(commands.Cog):
             # check if the code exists in the database and whether it has been claimed or not
             unique_code, err_msg = await utls.validate_code(code)
             if err_msg:
-                await ctx.send(embed=utls.error_embed(err_msg))
+                await ctx.send(embed=utls.warning_embed(err_msg))
                 return
 
             # get the duration of the code
-            duration = unique_code.duration
+            duration = await ops.get_sub_duration_by_code(unique_code)
 
             # mark the code as redeemed
             await ops.redeem_code(unique_code, user) # TODO: FIX THIS
@@ -265,12 +265,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
 
             # check if the user has the role of admin or owner (amins can not claim codes)
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -282,10 +282,11 @@ class VIPCommand(commands.Cog):
             # check if the duration is valid
             duration, err_msg = await utls.validate_duration(duration)
             if err_msg:
-                await ctx.send(embed=utls.error_embed(err_msg))
+                await ctx.send(embed=utls.warning_embed(err_msg))
                 return
 
             # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
+            original_end_date = None
             subscription = await ops.get_active_subscription(user)
             extension = False
             if subscription and not subscription.is_expired():
@@ -297,10 +298,13 @@ class VIPCommand(commands.Cog):
             # Change user role to VIP if not already
             await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
+            if original_end_date is None:
+                original_end_date = subscription.end_date
+
             # add the grant to the database
             grant_date = datetime.now()
-            action_type = 'extend' if extension else 'grant' if extension else None
-            grant = mdls.Grant(grant_date, action_type, original_end_date, subscription.end_date, duration, subscription, admin, user)
+            action_type = 'extend' if extension else 'grant'
+            grant = mdls.Grant(grant_date, original_end_date, subscription.end_date, duration, subscription, admin, user, action_type=action_type)
             await ops.add_grant(grant)
 
             # send success message to admin and user
@@ -336,17 +340,18 @@ class VIPCommand(commands.Cog):
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.send(embed=utls.error_embed(utls.get_error_message()))
 
+
     @commands.command(name='revoke', aliases=['reduce', 'curse']) 
     async def revoke(self, ctx, member: discord.Member, duration: str = ''):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner (amins can not claim codes)
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -359,29 +364,28 @@ class VIPCommand(commands.Cog):
             subscription = await ops.get_active_subscription(user)
 
             if not subscription:
-                await ctx.send(embed=utls.error_embed(f'Member **{member.name}** does not have an active subscription.'))
+                await ctx.send(embed=utls.warning_embed(f'Member **{member.name}** does not have an active subscription.'))
                 return
 
             if duration:
                 # check if the duration is valid
                 duration, err_msg = await utls.validate_duration(duration)
                 if err_msg:
-                    await ctx.send(embed=utls.error_embed(err_msg))
+                    await ctx.send(embed=utls.warning_embed(err_msg))
                     return
-                print("reducing subscription", flush=True)
+                
                 # reduce the user's active subscription by reducing the end_date by the duration
                 subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
             else:
-                print("revoking subscription", flush=True)
                 # remove the user's active subscription by updating the end_date to now
                 subscription, original_end_date = await ops.revoke_subscription(subscription)
-
-            print("adding revoke", flush=True)
+                duration = None
+            
 
             # add the revoke to the database
             revoke_date = datetime.now()
             action_type = 'reduce' if duration else 'revoke'
-            revoke = mdls.Revoke(revoke_date, action_type, original_end_date, subscription.end_date, duration, subscription, admin, user)
+            revoke = mdls.Revoke(revoke_date, original_end_date, subscription.end_date, subscription, admin, user, duration=duration, action_type=action_type)
             await ops.add_revoke(revoke)
                 
 
@@ -420,12 +424,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner (amins can not check status)
             if ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command as an admin.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command as an admin.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -462,12 +466,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command as an admin.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command as an admin.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -479,18 +483,18 @@ class VIPCommand(commands.Cog):
 
             # check if the user already has a subscription and if so, get the remaining days
             subscription = await ops.get_active_subscription(user)
-            if subscription and not subscription.is_expired():
+            if subscription and not subscription.is_expired() and subscription.is_now_active():
                 # check if the user has the VIP role and if not, add it
-                if not discord.utils.get(ctx.author.roles, name='VIP'):
-                    await ctx.author.add_roles(vip_role)
+                if not discord.utils.get(member.roles, name='VIP'):
+                    await member.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
                 embed = utls.info_embed(title='Status', description=f'{user.username}\'s VIP subscription is active:')
                 embed.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
-                if discord.utils.get(ctx.author.roles, name='VIP'):
-                    await ctx.author.remove_roles(vip_role)
+                if discord.utils.get(member.roles, name='VIP'):
+                    await member.remove_roles(vip_role)
                 embed = utls.info_embed(title='Status', description=f'{user.username} does not have an active VIP subscription.')
 
             await ctx.send(embed=embed)
@@ -506,7 +510,7 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -519,7 +523,7 @@ class VIPCommand(commands.Cog):
                 return
             
             # get the duration of the code
-            duration = unique_code.duration
+            duration = await ops.get_sub_duration_by_code(unique_code)
 
             # send code status
             embed = utls.info_embed(title='Code Status', description=code)
@@ -547,12 +551,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner (amins can not claim codes)
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -576,12 +580,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner (amins can not claim codes)
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -600,17 +604,71 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(utls.get_error_message()))
 
 
+    @commands.command(name="setsub", help="[admin only] set unregistered VIP subscription by providing start date and duration") # !setsub @user 2023-05-010 1m
+    async def set_subscription(self, ctx, member: discord.Member, start_date: str, duration_days: int):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if admin exists in the database and add them if not
+            user, isNew = await utls.get_or_add_member(member)
+
+            # check if the user already has an active subscription
+            subscription = await ops.get_active_subscription(user)
+            if subscription:
+                await ctx.send(embed=utls.warning_embed('This user already has an active subscription.'))
+                return
+            
+
+            # convert subscription start date to datetime
+            start_date = start_date.split()[0].strip()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d") # e.g. start_date = 2023-05-10
+
+
+            # check if the duration is valid
+            if duration_days < 1:
+                await ctx.send(embed=utls.warning_embed('Duration days must be greater than 0.'))
+                return
+
+            # create the subscription
+            subscription = await ops.set_create_subscription(user, start_date, duration_days)
+
+
+            # send success message
+            embed = utls.success_embed(f'Subscription created for {user.username}.')
+            embed.add_field(name='Start date:', value=utls.datetime_to_string(subscription.start_date), inline=False)
+            embed.add_field(name='End date:', value=utls.datetime_to_string(subscription.end_date), inline=False)
+            embed.add_field(name='Duration:', value=f'{duration_days} days', inline=False)
+            embed.add_field(name='Warning Note:', value='No admin and no new Grant record will be recorded for this subscription.', inline=False)
+            await ctx.send(embed=embed)
+        
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+
+
     @commands.command(name="listas", aliases=['asinfo'], help="[admin only] list all active subscriptions")
     async def active_subs_info(self, ctx):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -621,7 +679,7 @@ class VIPCommand(commands.Cog):
 
             table_data = []
             for subscription in subscriptions:
-                status = 'Active' if subscription.active else 'Expired'
+                status = 'Active' if subscription.active and not subscription.is_expired() else 'pending' if subscription.is_future() else 'Expired'
                 user = await ops.get_user_by_subscription(subscription)
                 # days only
                 start_date = subscription.start_date.strftime("%Y-%m-%d")
@@ -630,7 +688,7 @@ class VIPCommand(commands.Cog):
                 table_data.append(row)
 
             if len(table_data) == 0:
-                await ctx.send(embed=utls.error_embed('There are no active subscriptions.'))
+                await ctx.send(embed=utls.warning_embed('There are no active subscriptions.'))
                 return
 
             headers = ["User's discord ID", "Start Date", "End Date", "Status"]
@@ -661,12 +719,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -713,12 +771,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -731,7 +789,7 @@ class VIPCommand(commands.Cog):
             
             table_data = []
             for subscription in subscriptions:
-                status = 'Active' if subscription.active else 'Expired'
+                status = 'Active' if subscription.active and not subscription.is_expired() else 'pending' if subscription.is_future() else 'Expired'
                 start_date = subscription.start_date.strftime("%Y-%m-%d")
                 end_date = subscription.end_date.strftime("%Y-%m-%d")
                 row = [subscription.id, start_date, end_date, status]
@@ -764,62 +822,17 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.error_embed(utls.get_error_message()))
 
     
-    @commands.command(name="setsub", help="[admin only] set unregistered VIP subscription by providing start date and duration")
-    async def set_subscription(self, ctx, member: discord.Member, start_date: str, duration_days: int):
-        try:
-            # make sure the command is not private
-            if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
-                return
-            
-            # check if the user has the role of admin or owner
-            if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
-                return
-            
-            # check if admin exists in the database and add them if not
-            admin, isNew = await utls.get_or_add_member(ctx.author)
-
-            # check if admin exists in the database and add them if not
-            user, isNew = await utls.get_or_add_member(member)
-
-            # check if the user already has an active subscription
-            subscription = await ops.get_active_subscription(user)
-            if subscription:
-                await ctx.send(embed=utls.error_embed('This user already has an active subscription.'))
-                return
-
-            # convert subscription start date to datetime
-            start_date = datetime.strptime(start_date, "%Y-%m-%d")
-
-            # check if the duration is valid
-            if duration_days < 1:
-                await ctx.send(embed=utls.error_embed('Duration days must be greater than 0.'))
-                return
-
-            # create the subscription
-            subscription = await ops.create_subscription(user, start_date, duration_days)
-
-            # send success message
-            await ctx.send(embed=utls.success_embed(f'Subscription created for {user.username}.'))
-        
-        except Exception as e:
-            logging.error(f"An error occurred: {str(e)}")
-            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
-            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
-
-    
     # @commands.command(name="listusall", aliases=['usinfoall'])
     # async def user_sub_info_all(self, ctx, member: discord.Member): # list all grants, extentions, revokes, reductions, and redeemed codes assocuiated with a user's active subscription
     #     try:
     #         # make sure the command is not private
     #         if ctx.guild is None:
-    #             await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+    #             await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
     #             return
             
     #         # check if the user has the role of admin or owner
     #         if not ctx.author.guild_permissions.administrator:
-    #             await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+    #             await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
     #             return
             
     #         # check if admin exists in the database and add them if not
@@ -845,12 +858,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -878,12 +891,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -931,12 +944,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
@@ -967,12 +980,12 @@ class VIPCommand(commands.Cog):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.send(embed=utls.error_embed('This command can not be used in private messages.'))
+                await ctx.send(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
             if not ctx.author.guild_permissions.administrator:
-                await ctx.send(embed=utls.error_embed('You are not allowed to use this command.'))
+                await ctx.send(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
             
             # check if admin exists in the database and add them if not
