@@ -69,7 +69,7 @@ class VIPCommand(commands.Cog):
 
     @commands.command(name='help', help='Returns the list of User commands.')
     async def help(self, ctx):
-        embed = utls.info_embed(title='VIP Bot', description='List of User commands')
+        embed = utls.info_embed(title='Member commands', description='List of member commands')
         embed.add_field(name='!help', value='Returns the list of commands.', inline=False)
         embed.add_field(name='!ping', value='Returns the latency of the bot.', inline=False)
         embed.add_field(name='!redeem <code>', value='Redeems a code for a VIP subscription.', inline=False)
@@ -78,9 +78,11 @@ class VIPCommand(commands.Cog):
         
         await ctx.send(embed=embed)
 
+
+    @commands.has_guild_permissions(administrator=True)
     @commands.command(name='help1', help='Returns the list of Admin commands.')
     async def help1(self, ctx):
-        embed = utls.owner_embed(title='VIP Bot', description='List of Admin commands')
+        embed = utls.owner_embed(title='Admin commands', description='List of admin level commands. Only server admins can use these commands.')
         embed.add_field(name='!help', value='Returns the list of User commands.', inline=False)
         embed.add_field(name='!help1', value='Returns the list of Admin commands.', inline=False)
         embed.add_field(name='!help2', value='Returns the list of Advanced Admin commands.', inline=False)
@@ -95,9 +97,11 @@ class VIPCommand(commands.Cog):
         
         await ctx.send(embed=embed)
 
+
+    @commands.has_guild_permissions(administrator=True)
     @commands.command(name='help2', help='Returns the list of Advanced Admin commands.')
     async def help2(self, ctx):
-        embed = utls.advanced_embed(title='VIP Bot', description='List of Advanced Admin commands')
+        embed = utls.advanced_embed(title='Advanced Admin commands', description='List of Advanced Admin level commands. Only server admins can use these commands. These commands are dangerous and should be used with caution.')
         embed.add_field(name='!listas', value='Lists all active VIP subscriptions.', inline=False)
         embed.add_field(name='!listu', value='Lists all users.', inline=False)
         embed.add_field(name='!listus <@User>', value='Lists all VIP subscriptions of a user.', inline=False)
@@ -111,10 +115,7 @@ class VIPCommand(commands.Cog):
         await ctx.send(embed=embed)
 
 
-    @commands.command(name='ping', help='Returns the latency of the bot.')
-    async def ping(self, ctx):
-        await ctx.send(embed=utls.info_embed(f'Pong! {round(self.bot.latency * 1000)}ms'))
-
+    @commands.has_guild_permissions(administrator=True)
     @commands.command(name='fcheck', aliases=['fc'], help='Forces the bot to check all subscriptions.')
     async def force_check(self, ctx):
         # check if the user has the role of admin or owner
@@ -136,6 +137,7 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=utls.warning_embed('The bot is already checking subscriptions at the moment. Please wait until it finishes.'))
 
 
+    @commands.has_guild_permissions(administrator=True)
     @commands.command(name='fbackup', aliases=['fb'], help='Forces the bot to backup the database.')
     async def force_backup(self, ctx):
         # check if the user has the role of admin or owner
@@ -155,6 +157,11 @@ class VIPCommand(commands.Cog):
             await ctx.send(embed=embed)
         else:
             await ctx.send(embed=utls.warning_embed('The bot is already backing up the database at the moment. Please wait until it finishes.'))
+
+
+    @commands.command(name='ping', help='Returns the latency of the bot.')
+    async def ping(self, ctx):
+        await ctx.send(embed=utls.info_embed(f'Pong! {round(self.bot.latency * 1000)}ms'))
 
 
     @commands.command(name='generate', aliases=['gen', 'forge'], help='Generates a unique code for a VIP subscription.')
@@ -191,7 +198,6 @@ class VIPCommand(commands.Cog):
             # insert the new unique code record into the database
             await ops.add_unique_code(unique_code)
 
-            
             embed = utls.success_embed(title=code, description='This code can be redeemed for a VIP subscription.')
             embed.add_field(name='Duration:', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
             embed.add_field(name='Expiry date:', value=utls.datetime_to_string(expiry_date), inline=False)
@@ -259,6 +265,7 @@ class VIPCommand(commands.Cog):
             logging.error(f"An error occurred: {str(e)}")
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+
 
     @commands.command(name='grant', aliases=['bless'], help='Grants a VIP subscription to a user.')
     async def grant(self, ctx, member: discord.Member, duration: str = '1m'):
