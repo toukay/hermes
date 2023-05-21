@@ -742,7 +742,7 @@ class VIPCommand(commands.Cog):
             table_data = []
             for user in users:
                 subscription = await ops.get_active_subscription(user)
-                status = 'VIP' if subscription and subscription.active else 'Not VIP'
+                status = 'VIP' if subscription and subscription.active else 'Free'
                 row = [user.id, user.username, status, user.discord_uid]
                 table_data.append(row)
 
