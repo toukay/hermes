@@ -71,7 +71,7 @@ async def get_sub_duration_by_code(code: UniqueCode) -> SubDuration:
 async def get_active_subscriptions() -> list[Subscription]:
     async with get_session() as session:
         now = func.now()
-        result = await session.execute(and_(Subscription.start_date <= now, Subscription.end_date >= now))
+        result = await session.execute(select(Subscription).filter(and_(Subscription.start_date <= now, Subscription.end_date >= now)))
     return result.scalars().all()
 
 async def get_active_subscription(user: User) -> Subscription:
