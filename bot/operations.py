@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from sqlalchemy import select
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from contextlib import asynccontextmanager
@@ -70,12 +70,14 @@ async def get_sub_duration_by_code(code: UniqueCode) -> SubDuration:
 # subscription helpers
 async def get_active_subscriptions() -> list[Subscription]:
     async with get_session() as session:
-        result = await session.execute(select(Subscription).filter(Subscription.active == True))
+        now = func.now()
+        result = await session.execute(and_(Subscription.start_date <= now, Subscription.end_date >= now))
     return result.scalars().all()
 
 async def get_active_subscription(user: User) -> Subscription:
     async with get_session() as session:
-        result = await session.execute(select(Subscription).filter(Subscription.user_id == user.id, Subscription.active == True))
+        now = func.now()
+        result = await session.execute(select(Subscription).filter(and_(Subscription.user_id == user.id, Subscription.start_date <= now, Subscription.end_date >= now)))
         subscription = result.scalar_one_or_none()
         if subscription:
             if subscription.is_expired():

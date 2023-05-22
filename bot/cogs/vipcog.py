@@ -811,8 +811,10 @@ class VIPCommand(commands.Cog):
 
             # Add reaction controls to the message
             if len(pages) > 1:
-                await message.add_reaction('⬅️')
-                await message.add_reaction('➡️')
+                # await message.add_reaction('⬅️')
+                # await message.add_reaction('➡️')
+                await message.response.edit_message.add_reaction('⬅️')
+                await message.response.edit_message.add_reaction('➡️')
                 # Create the pagination session and store it
                 self.pagination_sessions[message.id] = PaginationSession(message, headers, pages)
 
@@ -897,7 +899,7 @@ class VIPCommand(commands.Cog):
             
             table_data = []
             for subscription in subscriptions:
-                status = 'Active' if subscription.active and not subscription.is_expired() else 'pending' if subscription.is_future() else 'Expired'
+                status = 'Active' if subscription.is_now_active() else 'pending' if subscription.is_future() else 'Expired' if subscription.is_expired() else 'Unknown'
                 start_date = subscription.start_date.strftime("%Y-%m-%d")
                 end_date = subscription.end_date.strftime("%Y-%m-%d")
                 row = [subscription.id, start_date, end_date, status]
