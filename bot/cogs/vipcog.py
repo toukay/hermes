@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 import asyncio
 import os
 from tabulate import tabulate
+import csv
+import io
 
 import operations as ops
 import models as mdls
@@ -766,6 +768,57 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
+    @discord.slash_command(name="listu", aliases=['uinfo'], description="[admin only] list all users")
+    async def list_users(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            users = await ops.get_users()
+            
+            csv_data = []
+            for user in users:
+                subscription = await ops.get_active_subscription(user)
+                status = 'VIP' if subscription and subscription.active else 'Free'
+                row = [user.id, user.username, status, user.discord_uid]
+                csv_data.append(row)
+
+            if len(csv_data) == 0:
+                await ctx.respond(embed=utls.info_embed(title='Users', description='No users found.'))
+                return
+
+            headers = ["ID", "Username", "Status", "Discord ID"]
+            csv_data.insert(0, headers)
+
+            # Write the data to a StringIO buffer
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerows(csv_data)
+            buffer.seek(0)
+
+            # Create a discord.File object to send
+            file = discord.File(fp=buffer, filename="users.csv")
+
+            embed = utls.info_embed(title='All Users info are in the file')
+
+            message = await ctx.respond(embed=embed, file=file)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+
     @discord.slash_command(name="listas", aliases=['asinfo'], description="[admin only] list all active subscriptions")
     async def active_subs_info(self, ctx):
         try:
@@ -785,7 +838,7 @@ class VIPCommand(commands.Cog):
             # get all the members in the database
             subscriptions = await ops.get_active_subscriptions()
 
-            table_data = []
+            csv_data = []
             for subscription in subscriptions:
                 status = 'Active' if subscription.is_now_active() else 'pending' if subscription.is_future() else 'Expired' if subscription.is_expired() else 'Unknown'
                 user = await ops.get_user_by_subscription(subscription)
@@ -793,30 +846,27 @@ class VIPCommand(commands.Cog):
                 start_date = subscription.start_date.strftime("%Y-%m-%d")
                 end_date = subscription.end_date.strftime("%Y-%m-%d")
                 row = [user.discord_uid, start_date, end_date, status]
-                table_data.append(row)
+                csv_data.append(row)
 
-            if len(table_data) == 0:
+            if len(csv_data) == 0:
                 await ctx.respond(embed=utls.warning_embed('There are no active subscriptions.'))
                 return
 
             headers = ["User's discord ID", "Start Date", "End Date", "Status"]
+            csv_data.insert(0, headers)
 
-            pages = [table_data[i:i+10] for i in range(0, len(table_data), 10)]
+            # Write the data to a StringIO buffer
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerows(csv_data)
+            buffer.seek(0)
 
-            table_first_page = tabulate(pages[0], headers=headers, tablefmt="pretty")
+            # Create a discord.File object to send
+            file = discord.File(fp=buffer, filename="active_subscriptions.csv")
 
-            embed = utls.info_embed(title='Active Subscriptions', description=f'```{table_first_page}```')
+            embed = utls.info_embed(title='All Active Subscriptions info are in the file')
 
-            message = await ctx.respond(embed=embed)
-
-            # Add reaction controls to the message
-            if len(pages) > 1:
-                # await message.add_reaction('⬅️')
-                # await message.add_reaction('➡️')
-                await message.response.edit_message.add_reaction('⬅️')
-                await message.response.edit_message.add_reaction('➡️')
-                # Create the pagination session and store it
-                self.pagination_sessions[message.id] = PaginationSession(message, headers, pages)
+            message = await ctx.respond(embed=embed, file=file)
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
@@ -824,12 +874,12 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
-    @discord.slash_command(name="listu", aliases=['uinfo'], description="[admin only] list all users")
-    async def list_users(self, ctx):
+    @discord.slash_command(name="listfu", description="[admin only] list free users")
+    async def free_users_info(self, ctx, isvip: bool = False, hassubs: bool = False):
         try:
             # make sure the command is not private
             if ctx.guild is None:
-                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                await ctx.respond(embed=utls.warning_embed('This command can only be used in private messages.'))
                 return
             
             # check if the user has the role of admin or owner
@@ -838,45 +888,61 @@ class VIPCommand(commands.Cog):
                 return
             
             # check if admin exists in the database and add them if not
-            admin, isNew = await utls.get_or_add_member(ctx.author)
+            guild = self.bot.guilds[0]
 
-            users = await ops.get_users()
+            csv_data = []
+            for member in guild.members:
+                if member.bot:
+                    continue
+
+                user, isNew = await utls.get_or_add_member(member)
             
-            table_data = []
-            for user in users:
-                subscription = await ops.get_active_subscription(user)
-                status = 'VIP' if subscription and subscription.active else 'Free'
-                row = [user.id, user.username, status, user.discord_uid]
-                table_data.append(row)
+                active_subscription = await ops.get_active_subscription(user)
 
-            if len(table_data) == 0:
-                await ctx.respond(embed=utls.info_embed(title='Users', description='No users found.'))
+                subscriptions = await ops.get_subscriptions(user)
+
+                if active_subscription:
+                    continue
+                if isvip and not discord.utils.get(member.roles, name='VIP'):
+                    continue
+                if not isvip and discord.utils.get(member.roles, name='VIP'):
+                    continue
+                if hassubs and not subscriptions:
+                    continue
+                if not hassubs and subscriptions:
+                    continue
+
+                row = [member.id, member.name, member.discriminator]
+                csv_data.append(row)
+
+            if len(csv_data) == 0:
+                await ctx.respond(embed=utls.warning_embed('No Free users found with the specified criteria.'))
                 return
+            
+            headers = ["ID", "Username", "Discriminator"]
+            csv_data.insert(0, headers)
 
-            headers = ["ID", "Username", "Status", "Discord ID"]
+            # Write the data to a StringIO buffer
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerows(csv_data)
+            buffer.seek(0)
 
-            pages = [table_data[i:i+10] for i in range(0, len(table_data), 10)]
-                
-            table_first_page = tabulate(pages[0], headers=headers, tablefmt="pretty")
+            # Create a discord.File object to send
+            file = discord.File(fp=buffer, filename="free_users.csv")
 
-            embed = utls.info_embed(title='Users', description=f'```{table_first_page}```')
+            embed = utls.info_embed(title='All Free Users info are in the file')
+            embed.add_field(name='Is VIP:', value=isvip, inline=False)
+            embed.add_field(name='Has Subscriptions:', value=hassubs, inline=False)
 
-            message = await ctx.respond(embed=embed)
-
-            # Add reaction controls to the message
-            if len(pages) > 1:
-                await message.add_reaction('⬅️')
-                await message.add_reaction('➡️')
-                # Create the pagination session and store it
-                self.pagination_sessions[message.id] = PaginationSession(message, headers, pages)
+            message = await ctx.respond(embed=embed, file=file)
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
-            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
-    @discord.slash_command(name="listus", aliases=['usinfo'], description="[admin only] list all users with a subscription")
+    @discord.slash_command(name="listus", aliases=['usinfo'], description="[admin only] Lists all VIP subscriptions of a user")
     async def user_sub_info(self, ctx, member: discord.Member):
         try:
             # make sure the command is not private
@@ -897,34 +963,33 @@ class VIPCommand(commands.Cog):
 
             subscriptions = await ops.get_subscriptions(user)
             
-            table_data = []
+            csv_data = []
             for subscription in subscriptions:
                 status = 'Active' if subscription.is_now_active() else 'pending' if subscription.is_future() else 'Expired' if subscription.is_expired() else 'Unknown'
                 start_date = subscription.start_date.strftime("%Y-%m-%d")
                 end_date = subscription.end_date.strftime("%Y-%m-%d")
                 row = [subscription.id, start_date, end_date, status]
-                table_data.append(row)
+                csv_data.append(row)
 
-            if len(table_data) == 0:
+            if len(csv_data) == 0:
                 await ctx.respond(embed=utls.warning_embed('This user has no subscriptions.'))
                 return
             
             headers = ["ID", "Start Date", "End Date", "Status"]
+            csv_data.insert(0, headers)
 
-            pages = [table_data[i:i+10] for i in range(0, len(table_data), 10)]
+            # Write the data to a StringIO buffer
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerows(csv_data)
+            buffer.seek(0)
 
-            table_first_page = tabulate(pages[0], headers=headers, tablefmt="pretty")
+            # Create a discord.File object to send
+            file = discord.File(fp=buffer, filename=f"{member.name}_subscriptions.csv")
 
-            embed = utls.info_embed(title="User's Subscriptions Information", description=f'```{table_first_page}```')
+            embed = utls.info_embed(title=f"All {user.username} Subscriptions are in the file")
 
-            message = await ctx.respond(embed=embed)
-
-            # Add reaction controls to the message
-            if len(pages) > 1:
-                await message.add_reaction('⬅️')
-                await message.add_reaction('➡️')
-                # Create the pagination session and store it
-                self.pagination_sessions[message.id] = PaginationSession(message, headers, pages)
+            await ctx.respond(embed=embed, file=file)
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
