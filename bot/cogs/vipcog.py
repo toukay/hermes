@@ -27,11 +27,12 @@ class VIPCommand(commands.Cog):
         self.bot.remove_command('help')
         self.perm_vips = {}
         self.pagination_sessions = {}
-        self.silent = True
         self.task_check_subscriptions.start()
         self.sub_check_in_progress = False
         self.backup_in_progress = False
+        self.silent = True
         self.sub_check_mode = False
+        self.role_change_mode = False
         
     
     def cog_unload(self):
@@ -249,7 +250,8 @@ class VIPCommand(commands.Cog):
                 subscription = await ops.create_subscription(user, duration)
             
             # Change user role to VIP if not already
-            await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+            if self.role_change_mode:
+                await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if extension:
                 embed = utls.success_embed(title='Extension', description=f'Your subscription has been extended:')
@@ -305,7 +307,8 @@ class VIPCommand(commands.Cog):
                 subscription = await ops.create_subscription(user, duration)
 
             # Change user role to VIP if not already
-            await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+            if self.role_change_mode:
+                await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if original_end_date is None:
                 original_end_date = subscription.end_date
@@ -450,7 +453,7 @@ class VIPCommand(commands.Cog):
             subscription = await ops.get_active_subscription(user)
             if subscription and not subscription.is_expired():
                 # check if the user has the VIP role and if not, add it
-                if not discord.utils.get(ctx.author.roles, name='VIP'):
+                if not discord.utils.get(ctx.author.roles, name='VIP') and self.role_change_mode:
                     await ctx.author.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
                 embed = utls.info_embed(title='Status', description=f'Your VIP subscription is active:')
@@ -458,7 +461,7 @@ class VIPCommand(commands.Cog):
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
-                if discord.utils.get(ctx.author.roles, name='VIP'):
+                if discord.utils.get(ctx.author.roles, name='VIP') and self.role_change_mode:
                     await ctx.author.remove_roles(vip_role)
                 embed = utls.info_embed(title='Status', description=f'You do not have an active VIP subscription.')
 
@@ -492,9 +495,9 @@ class VIPCommand(commands.Cog):
 
             # check if the user already has a subscription and if so, get the remaining days
             subscription = await ops.get_active_subscription(user)
-            if subscription and not subscription.is_expired() and subscription.is_now_active():
+            if subscription and subscription.is_now_active():
                 # check if the user has the VIP role and if not, add it
-                if not discord.utils.get(member.roles, name='VIP'):
+                if not discord.utils.get(member.roles, name='VIP') and self.role_change_mode:
                     await member.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
                 embed = utls.info_embed(title='Status', description=f'{member.mention}\'s VIP subscription is active:')
@@ -502,7 +505,7 @@ class VIPCommand(commands.Cog):
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
-                if discord.utils.get(member.roles, name='VIP'):
+                if discord.utils.get(member.roles, name='VIP') and self.role_change_mode:
                     await member.remove_roles(vip_role)
                 embed = utls.info_embed(title='Status', description=f'{member.mention} does not have an active VIP subscription.')
 
@@ -641,6 +644,65 @@ class VIPCommand(commands.Cog):
             
             description = f'Automatic Subscription check task has been {"enabled" if self.sub_check_mode else "disabled"} by {ctx.author.mention}. The task will run every 3 hours.'
             embed = utls.success_embed(title='Automatic Subscription Checking', description=description)
+
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+    @discord.slash_command(name="rolechange", description="[admin only] toggle automatic role change mode")
+    async def toggle_role_change_mode(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            self.role_change_mode = not self.role_change_mode
+            
+            description = f'Automatic Role change has been {"enabled" if self.role_change_mode else "disabled"} by {ctx.author.mention}.'
+            embed = utls.success_embed(title='Automatic role changing', description=description)
+
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+
+    @discord.slash_command(name="info", description="[admin only] get info about the bot")
+    async def info(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+            
+            # get the bot info (attributes) and display their status (on or off)
+
+            embed = utls.info_embed(title='Bot Info', description='Bot attributes and their status:')
+            embed.add_field(name='Automatic Subscription Checking:', value='Enabled' if self.sub_check_mode else 'Disabled', inline=False)
+            embed.add_field(name='Automatic Role Changing:', value='Enabled' if self.role_change_mode else 'Disabled', inline=False)
+            embed.add_field(name='Quiet Mode:', value='Enabled' if self.silent else 'Disabled', inline=False)
 
             await ctx.respond(embed=embed)
 
@@ -1009,7 +1071,8 @@ class VIPCommand(commands.Cog):
 
             # remove the vip role from all the members
             for member in members:
-                await member.remove_roles(vip_role)
+                if self.role_change_mode:
+                    await member.remove_roles(vip_role)
 
             embed = utls.success_embed('All members with the VIP role have been removed from the role.')
 
@@ -1022,7 +1085,7 @@ class VIPCommand(commands.Cog):
 
 
     @discord.slash_command(name="massrs", aliases=['msrv'], description="[admin only] mass remove all vip subscriptions")
-    async def mass_remove_vip_roles(self, ctx): # Remove the vip role from all members of the server
+    async def mass_remove_vip_subscriptions(self, ctx): # Remove the vip role from all members of the server
         try:
             # make sure the command is not private
             if ctx.guild is None:
@@ -1045,7 +1108,8 @@ class VIPCommand(commands.Cog):
 
             # remove the vip role from all the members and their active subscriptions
             for member in members:
-                await member.remove_roles(vip_role)
+                if self.role_change_mode:
+                    await member.remove_roles(vip_role)
                 user, isNew = await utls.get_or_add_member(member)
                 subscription = await ops.get_active_subscription(user)
                 if subscription is not None:
@@ -1202,7 +1266,8 @@ class VIPCommand(commands.Cog):
             if subscription:
                 if subscription.is_expired() and vip_role in member.roles:
                     await ops.end_subscription(subscription)
-                    await member.remove_roles(vip_role)
+                    if self.role_change_mode:
+                        await member.remove_roles(vip_role)
                     records_updated += 1
                     is_subscription_expired = True
                         
@@ -1220,7 +1285,8 @@ class VIPCommand(commands.Cog):
                     
                 elif subscription.is_now_active():
                     if not vip_role in member.roles:
-                        await member.add_roles(vip_role)
+                        if self.role_change_mode:
+                            await member.add_roles(vip_role)
                         records_updated += 1
                         embed_admin = utls.success_embed(f'{member.mention}\'s VIP role has been reinstated as his subscription is still active.')
                         embed_user = utls.success_embed(f'Your VIP role has been reinstated as your subscription is still active.')
