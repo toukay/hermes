@@ -90,7 +90,7 @@ class Subscription(Base):
         return self.end_date < datetime.now()
     
     def is_future(self):
-        return self.start_date > datetime.now()
+        return datetime.now() <= self.start_date <= self.end_date
 
     def is_now_active(self):
         return self.start_date <= datetime.now() <= self.end_date

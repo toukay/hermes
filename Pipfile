@@ -11,6 +11,8 @@ aiosqlite = "*"
 tabulate = "*"
 pytest = "*"
 pytest-asyncio = "*"
+discord-py-slash-command = "*"
+py-cord = "*"
 
 [dev-packages]
 
