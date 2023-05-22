@@ -319,7 +319,7 @@ class VIPCommand(commands.Cog):
             # send success message to admin and user
             quiet_mode = 'Enabled, member will not be notified' if self.silent else 'Disabled, member will be notified'
             if extension:
-                embed_admin = utls.success_embed(title='Extension', description=f'Member **{member.name}**\'s subscription has been extended:')
+                embed_admin = utls.success_embed(title='Extension', description=f'Member **{member.mention}**\'s subscription has been extended:')
                 embed_admin.add_field(name='By (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
                 embed_admin.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_admin.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
@@ -330,7 +330,7 @@ class VIPCommand(commands.Cog):
                 embed_user.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_user.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
             else:
-                embed_admin = utls.success_embed(title='Activation', description=f'Member **{member.name}**\'s subscription has been actiaved:')
+                embed_admin = utls.success_embed(title='Activation', description=f'Member **{member.mention}**\'s subscription has been actiaved:')
                 embed_admin.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
                 embed_admin.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
                 embed_admin.add_field(name='Quiet mode:', value=quiet_mode, inline=False)
@@ -400,7 +400,7 @@ class VIPCommand(commands.Cog):
 
             quiet_mode = 'Enabled, member will not be notified' if self.silent else 'Disabled, member will be notified'
             if duration and not subscription.is_expired():
-                embed_admin = utls.success_embed(title='Duration Reduce', description=f'Member **{member.name}**\'s subscription duration has been reduced:')
+                embed_admin = utls.success_embed(title='Duration Reduce', description=f'Member **{member.mention}**\'s subscription duration has been reduced:')
                 embed_admin.add_field(name='By (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
                 embed_admin.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_admin.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
@@ -412,7 +412,7 @@ class VIPCommand(commands.Cog):
                 embed_user.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
             else:
                 await member.remove_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
-                embed_admin = utls.success_embed(title='Revoke', description=f'Member **{member.name}**\'s subscription has been revoked.')
+                embed_admin = utls.success_embed(title='Revoke', description=f'Member **{member.mention}**\'s subscription has been revoked.')
                 embed_admin.add_field(name='Quiet Mode:', value=quiet_mode, inline=False)
                 embed_user = utls.warning_embed(title='Revoke', description=f'Your subscription has been revoked.')
             
@@ -497,14 +497,14 @@ class VIPCommand(commands.Cog):
                 if not discord.utils.get(member.roles, name='VIP'):
                     await member.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
-                embed = utls.info_embed(title='Status', description=f'{user.username}\'s VIP subscription is active:')
+                embed = utls.info_embed(title='Status', description=f'{member.mention}\'s VIP subscription is active:')
                 embed.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
                 if discord.utils.get(member.roles, name='VIP'):
                     await member.remove_roles(vip_role)
-                embed = utls.info_embed(title='Status', description=f'{user.username} does not have an active VIP subscription.')
+                embed = utls.info_embed(title='Status', description=f'{member.mention} does not have an active VIP subscription.')
 
             await ctx.respond(embed=embed)
 
@@ -690,8 +690,8 @@ class VIPCommand(commands.Cog):
             subscription = await ops.set_create_subscription(user, start_date, duration_days)
 
 
-            # send success message
-            embed = utls.success_embed(f'Subscription created for {user.username}.')
+            # send success message # success_embed(title: str, description: str = '')
+            embed = utls.success_embed(title=f'Subscription force set for {user.username}.', description=f'Subscription created for {member.mention}')
             embed.add_field(name='Start date:', value=utls.datetime_to_string(subscription.start_date), inline=False)
             embed.add_field(name='End date:', value=utls.datetime_to_string(subscription.end_date), inline=False)
             embed.add_field(name='Duration:', value=f'{duration_days} days', inline=False)
