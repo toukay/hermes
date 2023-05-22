@@ -27,10 +27,11 @@ class VIPCommand(commands.Cog):
         self.bot.remove_command('help')
         self.perm_vips = {}
         self.pagination_sessions = {}
-        self.silent = False
+        self.silent = True
         self.task_check_subscriptions.start()
         self.sub_check_in_progress = False
         self.backup_in_progress = False
+        self.sub_check_mode = False
         
     
     def cog_unload(self):
@@ -38,7 +39,8 @@ class VIPCommand(commands.Cog):
 
     @tasks.loop(hours=3)
     async def task_check_subscriptions(self):
-        await self.check_subscriptions()
+        if self.sub_check_mode:
+            await self.check_subscriptions()
     
     @tasks.loop(minutes=10)
     async def clear_pagination_sessions(self):
@@ -611,6 +613,43 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
+    @discord.slash_command(name="keep")
+    async def keep(self, ctx, member: discord.Member):
+        # Add the member's user ID to the perm_vips dictionary
+        self.perm_vips[member.id] = True
+
+        # Inform the user that the member will keep the "VIP" role
+        await ctx.respond(f"{member.mention} will keep the VIP role. **(Permanently! Database and other features not fully working yet)**")
+
+    @discord.slash_command(name="autocheck", description="[admin only] toggle automatic subscription check task")
+    async def toggle_sub_check_task(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            self.sub_check_mode = not self.sub_check_mode
+            
+            description = f'Automatic Subscription check task has been {"enabled" if self.sub_check_mode else "disabled"} by {ctx.author.mention}. The task will run every 3 hours.'
+            embed = utls.success_embed(title='Automatic Subscription Checking', description=description)
+
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+
     @discord.slash_command(name="setsub", description="[admin only] set unregistered VIP subscription by providing start date and duration") # !setsub @user 2023-05-010 1m
     async def set_subscription(self, ctx, member: discord.Member, start_date: str, duration_days: int):
         try:
@@ -1160,18 +1199,18 @@ class VIPCommand(commands.Cog):
             
             subscription = await ops.get_active_subscription(user)
             
-            is_subscription_expired = False
             if subscription:
-                if subscription.is_expired():
+                if subscription.is_expired() and vip_role in member.roles:
                     await ops.end_subscription(subscription)
-                    # await member.remove_roles(vip_role)
+                    await member.remove_roles(vip_role)
                     records_updated += 1
                     is_subscription_expired = True
                         
                     embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription has ended.')
                     embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
 
-                    await member.send(embed=embed_user)
+                    if not self.silent_mode:
+                        await member.send(embed=embed_user)
 
                     for owner in owner_members:
                         await owner.send(embed=embed_admin)
@@ -1179,22 +1218,34 @@ class VIPCommand(commands.Cog):
                     for admin in admin_members:
                         await admin.send(embed=embed_admin)
                     
-                elif subscription.is_expiring_soon(days=1):
+                elif subscription.is_now_active():
+                    if not vip_role in member.roles:
+                        await member.add_roles(vip_role)
+                        records_updated += 1
+                        embed_admin = utls.success_embed(f'{member.mention}\'s VIP role has been reinstated as his subscription is still active.')
+                        embed_user = utls.success_embed(f'Your VIP role has been reinstated as your subscription is still active.')
 
-                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
-                    embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
+                        if not self.silent_mode:
+                            await member.send(embed=embed_user)
 
-                    await member.send(embed=embed_user)
+                        for owner in owner_members:
+                            await owner.send(embed=embed_admin)
 
-                    for owner in owner_members:
-                        await owner.send(embed=embed_admin)
+                        for admin in admin_members:
+                            await admin.send(embed=embed_admin)
+                    if subscription.is_expiring_soon(days=1):
 
-                    for admin in admin_members:
-                        await admin.send(embed=embed_admin)
+                        embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
+                        embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
 
-            if is_subscription_expired:
-                pass
-                # await member.remove_roles(vip_role)
+                        if not self.silent_mode:
+                            await member.send(embed=embed_user)
+
+                        for owner in owner_members:
+                            await owner.send(embed=embed_admin)
+
+                        for admin in admin_members:
+                            await admin.send(embed=embed_admin)
                 
         
         logging.info('Finished checking subscriptions.')
