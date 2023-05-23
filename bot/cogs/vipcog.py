@@ -22,6 +22,17 @@ load_dotenv()
 
 ADMIN_USER_ID = os.environ['ADMIN_USER_ID']
 
+class NewMemberButtonsView(discord.ui.View):
+    @discord.ui.button(label='Grant', row=0, style=discord.ButtonStyle.primary)
+    async def grant(self, button: discord.ui.Button, interaction: discord.Interaction):
+        button.disabled = True
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.button(label='Kick', row=1, style=discord.ButtonStyle.danger)
+    async def kick(self, button: discord.ui.Button, interaction: discord.Interaction):
+        button.disabled = True
+        await interaction.response.edit_message(view=self)
+
 
 class VIPCommand(commands.Cog):
     def __init__(self, bot):
@@ -252,7 +263,7 @@ class VIPCommand(commands.Cog):
                 subscription = await ops.create_subscription(user, duration)
             
             # Change user role to VIP if not already
-            if self.role_change_mode:
+            if subscription.is_now_active():
                 await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if extension:
@@ -309,7 +320,7 @@ class VIPCommand(commands.Cog):
                 subscription = await ops.create_subscription(user, duration)
 
             # Change user role to VIP if not already
-            if self.role_change_mode:
+            if subscription.is_now_active():
                 await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if original_end_date is None:
@@ -752,6 +763,18 @@ class VIPCommand(commands.Cog):
 
             # create the subscription
             subscription = await ops.set_create_subscription(user, start_date, duration_days)
+            
+            vipStatus = 0
+            if subscription.is_now_active():
+                if not discord.utils.get(member.roles, name='VIP'):
+                    vipStatus = 1
+                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                else:
+                    vipStatus = 2
+            else:
+                if discord.utils.get(member.roles, name='VIP'):
+                    vipStatus = -1
+                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
 
             # send success message # success_embed(title: str, description: str = '')
@@ -759,7 +782,9 @@ class VIPCommand(commands.Cog):
             embed.add_field(name='Start date:', value=utls.datetime_to_string(subscription.start_date), inline=False)
             embed.add_field(name='End date:', value=utls.datetime_to_string(subscription.end_date), inline=False)
             embed.add_field(name='Duration:', value=f'{duration_days} days', inline=False)
-            embed.add_field(name='Warning Note:', value='No admin and no new Grant record will be recorded for this subscription.', inline=False)
+            embed.add_field(name='Current Status:', value='Active' if subscription.is_now_active() else 'Inactive', inline=False)
+            embed.add_field(name='VIP Role:', value='Added!' if vipStatus == 1 else 'Removed!' if vipStatus == -1 else 'Not changed (Not-VIP)' if vipStatus == 0 else 'Not changed (Already VIP)', inline=False)
+            embed.add_field(name='Warning Note:', value='No admin and no new Grant record will be recorded for this subscription. For New subscriptions Use Grant instead', inline=False)
             await ctx.respond(embed=embed)
         
         except Exception as e:
@@ -1222,10 +1247,11 @@ class VIPCommand(commands.Cog):
         # loop through owners and admins and inform them
         member_name = member.name + "#" + member.discriminator
         admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial for {member_name}', description=f'{member.mention} has joined the server and has been given the VIP role temporarily. He will keep it for 5 minutes, after which it will be removed.')
+        admin_embed.add_field(name='Note', value='Buttons are just for testing, they do nothing now', inline=False)
         for owner in owner_members:
-            await owner.send(embed=admin_embed)
+            await owner.send(embed=admin_embed, view=NewMemberButtonsView())
         for admin in admin_members:
-            await admin.send(embed=admin_embed)
+            await admin.send(embed=admin_embed, view=NewMemberButtonsView())
         
         await asyncio.sleep(300)
         # check if user is still in the server and if he is, remove the vip role
