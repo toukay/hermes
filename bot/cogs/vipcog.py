@@ -256,7 +256,7 @@ class VIPCommand(commands.Cog):
             # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
             subscription = await ops.get_active_subscription(user)
             extension = False
-            if subscription:
+            if subscription and subscription.is_now_active():
                 extension = True
                 subscription, original_end_date = await ops.extend_subscription(subscription, duration)
             else:
@@ -264,6 +264,10 @@ class VIPCommand(commands.Cog):
             
             # Change user role to VIP if not already
             if subscription.is_now_active():
+                # Keep the member's VIP role from the free trila
+                if ctx.author.id in self.perm_vips:
+                    self.perm_vips[ctx.author.id] = True
+                    
                 await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if extension:
@@ -313,7 +317,7 @@ class VIPCommand(commands.Cog):
             original_end_date = None
             subscription = await ops.get_active_subscription(user)
             extension = False
-            if subscription and not subscription.is_expired():
+            if subscription and subscription.is_now_active():
                 extension = True
                 subscription, original_end_date = await ops.extend_subscription(subscription, duration)
             else:
@@ -321,6 +325,10 @@ class VIPCommand(commands.Cog):
 
             # Change user role to VIP if not already
             if subscription.is_now_active():
+                # Keep the member's VIP role from the free trila
+                if member.id in self.perm_vips:
+                    self.perm_vips[member.id] = True
+
                 await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
 
             if original_end_date is None:
@@ -565,11 +573,11 @@ class VIPCommand(commands.Cog):
 
     @discord.slash_command(name="keep")
     async def keep(self, ctx, member: discord.Member):
-        # Add the member's user ID to the perm_vips dictionary
+        # Keep the member's VIP role
         self.perm_vips[member.id] = True
 
         # Inform the user that the member will keep the "VIP" role
-        await ctx.respond(f"{member.mention} will keep the VIP role. **(Permanently! Database and other features not fully working yet)**")
+        await ctx.respond(f"{member.mention} will keep the VIP role. **Use Grant or setsub commands if you didn't!**")
 
     @discord.slash_command(name="quiet", description="[admin only] enable quiet mode")
     async def quiet(self, ctx):
@@ -627,15 +635,6 @@ class VIPCommand(commands.Cog):
             logging.error(f"An error occurred: {str(e)}")
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
-
-
-    @discord.slash_command(name="keep")
-    async def keep(self, ctx, member: discord.Member):
-        # Add the member's user ID to the perm_vips dictionary
-        self.perm_vips[member.id] = True
-
-        # Inform the user that the member will keep the "VIP" role
-        await ctx.respond(f"{member.mention} will keep the VIP role. **(Permanently! Database and other features not fully working yet)**")
 
     @discord.slash_command(name="autocheck", description="[admin only] toggle automatic subscription check task")
     async def toggle_sub_check_task(self, ctx):
@@ -766,6 +765,10 @@ class VIPCommand(commands.Cog):
             
             vipStatus = 0
             if subscription.is_now_active():
+                # Keep the member's VIP role from the free trila
+                if member.id in self.perm_vips:
+                    self.perm_vips[member.id] = True
+
                 if not discord.utils.get(member.roles, name='VIP'):
                     vipStatus = 1
                     await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
@@ -1253,9 +1256,12 @@ class VIPCommand(commands.Cog):
         for admin in admin_members:
             await admin.send(embed=admin_embed, view=NewMemberButtonsView())
         
+        # Add the member's user ID to the perm_vips dictionary
+        self.perm_vips[member.id] = False
+
         await asyncio.sleep(300)
         # check if user is still in the server and if he is, remove the vip role
-        if member.id not in self.perm_vips and vip_role in member.roles:
+        if self.perm_vips[member.id] == False:
             await member.remove_roles(vip_role)
 
             # embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired. If you want to keep the VIP role, please contact one of the owners of the server.')
@@ -1274,19 +1280,19 @@ class VIPCommand(commands.Cog):
                 await owner.send(embed=admin_embed)
             for admin in admin_members:
                 await admin.send(embed=admin_embed)
-            
         else:
-            # Remove the member from the dictionary if they are in it
-            del self.perm_vips[member.id]
             # embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired, but you have paid for the VIP role, so you will keep it.')
             member_embed = utls.info_embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور **VIP** الخاص بك ، لكنك دفعت مقابل دور **VIP** ، لذلك ستحتفظ به.')
             await member.send(embed=member_embed)
 
-            admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} has had his VIP role removed after the free trial expired, but he has paid for the VIP role, so he will keep it.')
+            admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} VIP role free trial expired, but he was given a new active subscription or `keep` was used on him, so he will keep the VIP role.')
             for owner in owner_members:
                 await owner.send(embed=admin_embed)
             for admin in admin_members:
                 await admin.send(embed=admin_embed)
+
+        # Remove the member from the dictionary if they are in it
+        del self.perm_vips[member.id]
 
 
     @commands.Cog.listener()
