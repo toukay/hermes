@@ -22,7 +22,7 @@ async def main():
     intents.guilds = True
     intents.messages = True
     intents.members = True
-    bot = commands.Bot(command_prefix='!', intents=intents)
+    bot = commands.Bot(command_prefix='/', intents=intents)
     # vip_command = VIPCommand(bot)
     bot.load_extension('cogs.vipcog')
 
@@ -38,7 +38,9 @@ async def main():
     # await bot.add_cog(vip_command)
     await bot.start(TOKEN)
 
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    pass
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

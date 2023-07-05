@@ -15,9 +15,6 @@ import operations as ops
 import models as mdls
 import utils as utls
 
-from pagination import PaginationSession
-
-
 load_dotenv()
 
 ADMIN_USER_ID = os.environ['ADMIN_USER_ID']
@@ -39,7 +36,6 @@ class VIPCommand(commands.Cog):
         self.bot = bot
         self.bot.remove_command('help')
         self.perm_vips = {}
-        self.pagination_sessions = {}
         self.task_check_subscriptions.start()
         self.sub_check_in_progress = False
         self.backup_in_progress = False
@@ -51,16 +47,10 @@ class VIPCommand(commands.Cog):
     def cog_unload(self):
         self.task_check_subscriptions.cancel()
 
-    @tasks.loop(hours=3)
+    @tasks.loop(hours=12)
     async def task_check_subscriptions(self):
         if self.sub_check_mode:
             await self.check_subscriptions()
-    
-    @tasks.loop(minutes=10)
-    async def clear_pagination_sessions(self):
-        logging.info('Cleaning pagination sessions...')
-        self.pagination_sessions = {}
-        logging.info('Pagination sessions cleaned.')
 
     @tasks.loop(hours=24)
     async def backup_db(self):
@@ -188,7 +178,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
 
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -289,14 +279,14 @@ class VIPCommand(commands.Cog):
 
 
     @discord.slash_command(name='grant', aliases=['bless'], description='Grants a VIP subscription to a user.')
-    async def grant(self, ctx, member: discord.Member, duration: str = '1m'):
+    async def grant(self, ctx, member: discord.Member, start_date: str = datetime.today().strftime("%Y-%m-%d"), duration: str = '1m'):
         try:
             # make sure the command is not private
             if ctx.guild is None:
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
 
-            # check if the user has the role of admin or owner (amins can not claim codes)
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -306,6 +296,15 @@ class VIPCommand(commands.Cog):
 
             # check if user exists in the database and add them if not
             user, isNew = await utls.get_or_add_member(member)
+
+            # TODO 1: test if you can leave start_date as datetime (maybe can result in a calendar in discord)
+            # TODO 2: further compare the setsub and grant to make sure grant have all the necessary functionalities (before removing the real setsub)
+            # TODO 3: make granting and extending subscription work by date (e.g 1 month from start date 2023-05-10 => end date: 2023-06-10, regardless of month duration)
+            # TODO 4: remove setsub command and make the name as alias for grant
+
+            # convert subscription start date to datetime
+            start_date = start_date.split()[0].strip()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d") # e.g. start_date = 2023-05-10
 
             # check if the duration is valid
             duration, err_msg = await utls.validate_duration(duration)
@@ -502,7 +501,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command as an admin.'))
                 return
@@ -732,7 +731,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -804,7 +803,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -817,7 +816,7 @@ class VIPCommand(commands.Cog):
             csv_data = []
             for user in users:
                 subscription = await ops.get_active_subscription(user)
-                status = 'VIP' if subscription and subscription.active else 'Free'
+                status = 'VIP' if subscription and subscription.is_now_active() else 'Free'
                 row = [user.id, user.username, status, user.discord_uid]
                 csv_data.append(row)
 
@@ -855,7 +854,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -910,7 +909,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can only be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -978,7 +977,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -1064,7 +1063,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -1097,7 +1096,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -1150,7 +1149,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -1187,7 +1186,7 @@ class VIPCommand(commands.Cog):
                 await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
                 return
             
-            # check if the user has the role of admin or owner
+            # check if the user has the administrator permission
             if not ctx.author.guild_permissions.administrator:
                 await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
                 return
@@ -1243,13 +1242,13 @@ class VIPCommand(commands.Cog):
         admin_members = admin_role.members
 
         guild_name = member.guild.name
-        # embed = utls.info_embed(title=f'{guild_name} VIP role free trial', description=f'You have been given the VIP role temporarily. You will keep it for 5 minutes, after which it will be removed. However, if you already paid for the VIP role, you will get reinstated automatically.')
-        member_embed = utls.info_embed(title=f'تجربة مجانية لدور  MKL-Signals - VIP', description=f'لقد تم منحك دور **VIP** مؤقتًا. ستحتفظ بها لمدة 5 دقائق ، وبعد ذلك ستتم إزالتها. ومع ذلك ، إذا كنت قد دفعت بالفعل مقابل دور **VIP** ، فستتم إعادتك تلقائيًا.')
+        # embed = utls.info_embed(title=f'{guild_name} VIP role free trial', description=f'You have been given the VIP role temporarily. You will keep it for 20 minutes, after which it will be removed. However, if you already paid for the VIP role, you will get reinstated automatically.')
+        member_embed = utls.info_embed(title=f'تجربة مجانية لدور  MKL-Signals - VIP', description=f'لقد تم منحك دور **VIP** مؤقتًا. ستحتفظ بها لمدة 20 دقائق ، وبعد ذلك ستتم إزالتها. ومع ذلك ، إذا كنت قد دفعت بالفعل مقابل دور **VIP** ، فستتم إعادتك تلقائيًا.')
         await member.send(embed=member_embed)
 
         # loop through owners and admins and inform them
         member_name = member.name + "#" + member.discriminator
-        admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial for {member_name}', description=f'{member.mention} has joined the server and has been given the VIP role temporarily. He will keep it for 5 minutes, after which it will be removed.')
+        admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial for {member_name}', description=f'{member.mention} has joined the server and has been given the VIP role temporarily. He will keep it for 20 minutes, after which it will be removed.')
         admin_embed.add_field(name='Note', value='Buttons are just for testing, they do nothing now', inline=False)
         for owner in owner_members:
             await owner.send(embed=admin_embed, view=NewMemberButtonsView())
@@ -1259,7 +1258,7 @@ class VIPCommand(commands.Cog):
         # Add the member's user ID to the perm_vips dictionary
         self.perm_vips[member.id] = False
 
-        await asyncio.sleep(300)
+        await asyncio.sleep(1200)
         # check if user is still in the server and if he is, remove the vip role
         if self.perm_vips[member.id] == False:
             await member.remove_roles(vip_role)
@@ -1294,22 +1293,6 @@ class VIPCommand(commands.Cog):
         # Remove the member from the dictionary if they are in it
         del self.perm_vips[member.id]
 
-
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        session = self.pagination_sessions.get(reaction.message.id)
-        if session:
-            if str(reaction.emoji) == '⬅️' and session.current_page > 0:
-                session.current_page -= 1
-            elif str(reaction.emoji) == '➡️' and session.current_page < len(session.pages) - 1:
-                session.current_page += 1
-
-            # Edit the message to update the page
-            table_first_page = tabulate(session.pages[session.current_page], headers=session.headers, tablefmt="pretty")
-
-            embed = utls.info_embed(title='Users', description=f'```{table_first_page}```')
-
-            await session.message.edit(embed=embed)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -1352,70 +1335,49 @@ class VIPCommand(commands.Cog):
         logging.info('Checking subscriptions...')
         guild = self.bot.guilds[0]
         vip_role = discord.utils.get(guild.roles, name="VIP")
-        owner_role = discord.utils.get(guild.roles, name="Owner")
-        owner_members = owner_role.members
-        admin_role = discord.utils.get(guild.roles, name="Admin")
-        admin_members = admin_role.members
+        admin_members = utls.get_admins_and_owners(guild)
         records_updated = 0
         for member in guild.members:
             user, isNew = await utls.get_or_add_member(member)
-            
             subscription = await ops.get_active_subscription(user)
-            
-            if subscription:
-                if subscription.is_expired() and vip_role in member.roles:
-                    await ops.end_subscription(subscription)
-                    if self.role_change_mode:
-                        await member.remove_roles(vip_role)
-                    records_updated += 1
-                    is_subscription_expired = True
-                        
-                    embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription has ended.')
-                    embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
-
-                    if not self.silent_mode:
-                        await member.send(embed=embed_user)
-
-                    for owner in owner_members:
-                        await owner.send(embed=embed_admin)
-
-                    for admin in admin_members:
-                        await admin.send(embed=embed_admin)
-                    
-                elif subscription.is_now_active():
-                    if not vip_role in member.roles:
-                        if self.role_change_mode:
-                            await member.add_roles(vip_role)
-                        records_updated += 1
-                        embed_admin = utls.success_embed(f'{member.mention}\'s VIP role has been reinstated as his subscription is still active.')
-                        embed_user = utls.success_embed(f'Your VIP role has been reinstated as your subscription is still active.')
-
-                        if not self.silent_mode:
-                            await member.send(embed=embed_user)
-
-                        for owner in owner_members:
-                            await owner.send(embed=embed_admin)
-
-                        for admin in admin_members:
-                            await admin.send(embed=embed_admin)
+            member_name = member.name + "#" + member.discriminator
+            if vip_role in member.roles: 
+                if subscription: 
                     if subscription.is_expiring_soon(days=1):
-
-                        embed_admin = utls.warning_embed(f'{member.mention}\'s VIP subscription is about to end in less than 1 day.')
+                        embed_admin = utls.warning_embed(f'{member.mention}\'s ({member_name}) VIP subscription is about to end in less than 1 day.')
                         embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
+                else:
+                    embed_admin = utls.warning_embed(f'{member.mention}\'s ({member_name}) VIP subscription has ended.')
+                    embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
+                    await member.remove_roles(vip_role)
+                    records_updated += 1
+            elif subscription and subscription.is_now_active():
+                embed_admin = utls.success_embed(f'{member.mention}\'s ({member_name}) VIP role has been reinstated as his subscription is still active.')
+                embed_user = utls.success_embed(f'Your VIP role has been reinstated as your subscription is still active.')
+                await member.add_roles(vip_role)
+                records_updated += 1
+            else:
+                continue
 
-                        if not self.silent_mode:
-                            await member.send(embed=embed_user)
-
-                        for owner in owner_members:
-                            await owner.send(embed=embed_admin)
-
-                        for admin in admin_members:
-                            await admin.send(embed=embed_admin)
+            await self.send_embed_messages(embed_admin, embed_user, member, admin_members)
                 
-        
         logging.info('Finished checking subscriptions.')
         self.sub_check_in_progress = False
         return len(guild.members), records_updated
+    
+
+    async def send_embed_messages(self, embed_admin, embed_user, member, admin_members):
+        if not self.silent_mode:
+            try:
+                await member.send(embed=embed_user)
+            except discord.Forbidden:
+                print(f"Was not able to send message to {member.name}")
+
+        for admin in admin_members:
+            try:
+                await admin.send(embed=embed_admin)
+            except discord.Forbidden:
+                print(f"Was not able to send message to {admin.name}")
 
 
 def setup(bot): # this is called by Pycord to setup the cog

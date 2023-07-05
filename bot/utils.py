@@ -127,6 +127,11 @@ def owner_embed(title: str, description: str = '') -> discord.Embed:
     embed = discord.Embed(title=title, description=description, color=discord.Color.magenta())
     return embed
 
-# method to convert datetime to string
+
 def datetime_to_string(dt: datetime) -> str:
     return dt.strftime(DATETIME_FORMAT)
+
+def get_admins_and_owners(guild) -> list:
+    owner_role = discord.utils.get(guild.roles, name="Owner")
+    admin_role = discord.utils.get(guild.roles, name="Admin")
+    return owner_role.members + admin_role.members
