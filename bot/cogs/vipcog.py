@@ -373,6 +373,66 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
+    @discord.slash_command(name='grantAll', description='Grants a VIP subscription to all members.')
+    async def grantAll(self, ctx, duration: str = ''):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+
+            # check if the user has the administrator permission
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if the duration is valid
+            duration, err_msg = await utls.validate_duration(duration)
+            if err_msg:
+                await ctx.respond(embed=utls.warning_embed(err_msg))
+                return
+
+            # get all members
+            members = ctx.guild.members
+
+            # grant VIP subscription to all members
+            for member in members:
+                # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
+                original_end_date = None
+                subscription = await ops.get_active_subscription(member)
+                extension = False
+                if subscription and subscription.is_now_active():
+                    extension = True
+                    subscription, original_end_date = await ops.extend_subscription(subscription, duration)
+                else:
+                    subscription = await ops.create_subscription(member, duration)
+
+                # Change user role to VIP if not already
+                if subscription.is_now_active():
+                    # Keep the member's VIP role from the free trila
+                    if member.id in self.perm_vips:
+                        self.perm_vips[member.id] = True
+
+                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+
+                if original_end_date is None:
+                    original_end_date = subscription.end_date
+
+                # add the grant to the database
+                grant_date = datetime.now()
+                action_type = 'extend' if extension else 'grant'
+                grant = mdls.Grant(grant_date, original_end_date, subscription.end_date, duration, subscription, admin, member, action_type=action_type)
+                await ops.add_grant(grant)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+    
     @discord.slash_command(name='revoke', aliases=['reduce', 'curse']) 
     async def revoke(self, ctx, member: discord.Member, duration: str = ''):
         try:
@@ -1022,37 +1082,6 @@ class VIPCommand(commands.Cog):
             logging.error(f"An error occurred: {str(e)}")
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
-
-    
-    # @discord.slash_command(name="listusall", aliases=['usinfoall'])
-    # async def user_sub_info_all(self, ctx, member: discord.Member): # list all grants, extentions, revokes, reductions, and redeemed codes assocuiated with a user's active subscription
-    #     try:
-    #         # make sure the command is not private
-    #         if ctx.guild is None:
-    #             await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
-    #             return
-            
-    #         # check if the user has the role of admin or owner
-    #         if not ctx.author.guild_permissions.administrator:
-    #             await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
-    #             return
-            
-    #         # check if admin exists in the database and add them if not
-    #         admin, isNew = await utls.get_or_add_member(ctx.author)
-
-    #         # check if admin exists in the database and add them if not
-    #         user, isNew = await utls.get_or_add_member(member)
-
-    #         subscriptions = await ops.get_subscriptions(user)
-            
-    #         table_data = []
-    #         for subscription in subscriptions:
-    #             pass
-
-    #     except Exception as e:
-    #         logging.error(f"An error occurred: {str(e)}")
-    #         await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
-    #         await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
     @discord.slash_command(name="rega", aliases=['ra'], description="[admin only] register all users")
