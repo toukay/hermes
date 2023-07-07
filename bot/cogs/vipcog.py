@@ -1375,6 +1375,8 @@ class VIPCommand(commands.Cog):
                     if subscription.is_expiring_soon(days=1):
                         embed_admin = utls.warning_embed(f'{member.mention}\'s ({member_name}) VIP subscription is about to end in less than 1 day.')
                         embed_user = utls.warning_embed(f'Your VIP subscription is about to end in less than 1 day.')
+                    else:
+                        continue
                 else:
                     embed_admin = utls.warning_embed(f'{member.mention}\'s ({member_name}) VIP subscription has ended.')
                     embed_user = utls.warning_embed(f'Your VIP subscription has ended.')
