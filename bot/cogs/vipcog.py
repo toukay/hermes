@@ -1398,7 +1398,7 @@ class VIPCommand(commands.Cog):
     
 
     async def send_embed_messages(self, embed_admin, embed_user, member, admin_members):
-        if not self.silent_mode:
+        if not self.silent:
             try:
                 await member.send(embed=embed_user)
             except discord.Forbidden:
