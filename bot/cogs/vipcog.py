@@ -258,7 +258,7 @@ class VIPCommand(commands.Cog):
                 if ctx.author.id in self.perm_vips:
                     self.perm_vips[ctx.author.id] = True
                     
-                await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                await ctx.author.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
             if extension:
                 embed = utls.success_embed(title='Extension', description=f'Your subscription has been extended:')
@@ -328,7 +328,7 @@ class VIPCommand(commands.Cog):
                 if member.id in self.perm_vips:
                     self.perm_vips[member.id] = True
 
-                await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
             if original_end_date is None:
                 original_end_date = subscription.end_date
@@ -416,7 +416,7 @@ class VIPCommand(commands.Cog):
     #                 if member.id in self.perm_vips:
     #                     self.perm_vips[member.id] = True
 
-    #                 await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+    #                 await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
     #             if original_end_date is None:
     #                 original_end_date = subscription.end_date
@@ -494,7 +494,7 @@ class VIPCommand(commands.Cog):
                 embed_user.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_user.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
             else:
-                await member.remove_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
                 embed_admin = utls.success_embed(title='Revoke', description=f'Member **{member.mention}**\'s subscription has been revoked.')
                 embed_admin.add_field(name='Quiet Mode:', value=quiet_mode, inline=False)
                 embed_user = utls.warning_embed(title='Revoke', description=f'Your subscription has been revoked.')
@@ -511,7 +511,7 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
-    @discord.slash_command(name='status', aliases=['check', 'vip'])
+    @discord.slash_command(name='status', aliases=['check', '🌟 VIP'])
     async def status(self, ctx):
         try:
             # make sure the command is not private
@@ -527,13 +527,13 @@ class VIPCommand(commands.Cog):
             # check if admin exists in the database and add them if not
             user, isNew = await utls.get_or_add_member(ctx.author)
 
-            vip_role = discord.utils.get(ctx.guild.roles, name='VIP')
+            vip_role = discord.utils.get(ctx.guild.roles, name='🌟 VIP')
 
             # check if the user already has a subscription and if so, get the remaining days
             subscription = await ops.get_active_subscription(user)
             if subscription and not subscription.is_expired():
                 # check if the user has the VIP role and if not, add it
-                if not discord.utils.get(ctx.author.roles, name='VIP') and self.role_change_mode:
+                if not discord.utils.get(ctx.author.roles, name='🌟 VIP') and self.role_change_mode:
                     await ctx.author.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
                 embed = utls.info_embed(title='Status', description=f'Your VIP subscription is active:')
@@ -541,7 +541,7 @@ class VIPCommand(commands.Cog):
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
-                if discord.utils.get(ctx.author.roles, name='VIP') and self.role_change_mode:
+                if discord.utils.get(ctx.author.roles, name='🌟 VIP') and self.role_change_mode:
                     await ctx.author.remove_roles(vip_role)
                 embed = utls.info_embed(title='Status', description=f'You do not have an active VIP subscription.')
 
@@ -571,13 +571,13 @@ class VIPCommand(commands.Cog):
 
             user, isNew = await utls.get_or_add_member(member)
 
-            vip_role = discord.utils.get(ctx.guild.roles, name='VIP')
+            vip_role = discord.utils.get(ctx.guild.roles, name='🌟 VIP')
 
             # check if the user already has a subscription and if so, get the remaining days
             subscription = await ops.get_active_subscription(user)
             if subscription and subscription.is_now_active():
                 # check if the user has the VIP role and if not, add it
-                if not discord.utils.get(member.roles, name='VIP') and self.role_change_mode:
+                if not discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
                     await member.add_roles(vip_role)
                 remaining_days = (subscription.end_date - datetime.now()).days
                 embed = utls.info_embed(title='Status', description=f'{member.mention}\'s VIP subscription is active:')
@@ -585,7 +585,7 @@ class VIPCommand(commands.Cog):
                 embed.add_field(name='Remaining days:', value=remaining_days, inline=False)
             else:
                 # check if the user has the VIP role and if so, remove it
-                if discord.utils.get(member.roles, name='VIP') and self.role_change_mode:
+                if discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
                     await member.remove_roles(vip_role)
                 embed = utls.info_embed(title='Status', description=f'{member.mention} does not have an active VIP subscription.')
 
@@ -635,7 +635,7 @@ class VIPCommand(commands.Cog):
         # Keep the member's VIP role
         self.perm_vips[member.id] = True
 
-        # Inform the user that the member will keep the "VIP" role
+        # Inform the user that the member will keep the '🌟 VIP' role
         await ctx.respond(f"{member.mention} will keep the VIP role. **Use Grant or setsub commands if you didn't!**")
 
     @discord.slash_command(name="quiet", description="[admin only] enable quiet mode")
@@ -828,15 +828,15 @@ class VIPCommand(commands.Cog):
                 if member.id in self.perm_vips:
                     self.perm_vips[member.id] = True
 
-                if not discord.utils.get(member.roles, name='VIP'):
+                if not discord.utils.get(member.roles, name='🌟 VIP'):
                     vipStatus = 1
-                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
                 else:
                     vipStatus = 2
             else:
-                if discord.utils.get(member.roles, name='VIP'):
+                if discord.utils.get(member.roles, name='🌟 VIP'):
                     vipStatus = -1
-                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='VIP'))
+                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
 
             # send success message # success_embed(title: str, description: str = '')
@@ -876,7 +876,7 @@ class VIPCommand(commands.Cog):
             csv_data = []
             for user in users:
                 subscription = await ops.get_active_subscription(user)
-                status = 'VIP' if subscription and subscription.is_now_active() else 'Free'
+                status = '🌟 VIP' if subscription and subscription.is_now_active() else 'Free'
                 row = [user.id, user.username, status, user.discord_uid]
                 csv_data.append(row)
 
@@ -990,9 +990,9 @@ class VIPCommand(commands.Cog):
 
                 if active_subscription:
                     continue
-                if isvip and not discord.utils.get(member.roles, name='VIP'):
+                if isvip and not discord.utils.get(member.roles, name='🌟 VIP'):
                     continue
-                if not isvip and discord.utils.get(member.roles, name='VIP'):
+                if not isvip and discord.utils.get(member.roles, name='🌟 VIP'):
                     continue
                 if hassubs and not subscriptions:
                     continue
@@ -1140,7 +1140,7 @@ class VIPCommand(commands.Cog):
                 return
 
             # get the vip role
-            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+            vip_role = discord.utils.get(ctx.guild.roles, name='🌟 VIP')
 
             # get all the members with the vip role
             members = vip_role.members
@@ -1187,7 +1187,7 @@ class VIPCommand(commands.Cog):
             admin, isNew = await utls.get_or_add_member(ctx.author)
 
             # get the vip role
-            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+            vip_role = discord.utils.get(ctx.guild.roles, name='🌟 VIP')
 
             # get all the members with the vip role
             members = vip_role.members
@@ -1224,7 +1224,7 @@ class VIPCommand(commands.Cog):
             admin, isNew = await utls.get_or_add_member(ctx.author)
 
             # get the vip role
-            vip_role = discord.utils.get(ctx.guild.roles, name="VIP")
+            vip_role = discord.utils.get(ctx.guild.roles, name='🌟 VIP')
 
             # get all the members with the vip role
             members = vip_role.members
@@ -1252,7 +1252,7 @@ class VIPCommand(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         # get the vip role
-        vip_role = discord.utils.get(member.guild.roles, name="VIP")
+        vip_role = discord.utils.get(member.guild.roles, name='🌟 VIP')
 
         logging.info(f"{member} joined the server!")
 
@@ -1265,9 +1265,9 @@ class VIPCommand(commands.Cog):
         
         await member.add_roles(vip_role)
         # send him a private message informing him that he has been given the vip role temporarily as a free-trial, and if he paid he will get reinstaited (in an embed)
-        owner_role = discord.utils.get(member.guild.roles, name="Owner")
+        owner_role = discord.utils.get(member.guild.roles, name='👑 Owner')
         owner_members = owner_role.members
-        admin_role = discord.utils.get(member.guild.roles, name="Admin")
+        admin_role = discord.utils.get(member.guild.roles, name='🛡️ Admin')
         admin_members = admin_role.members
 
         guild_name = member.guild.name
@@ -1363,7 +1363,7 @@ class VIPCommand(commands.Cog):
         self.sub_check_in_progress = True
         logging.info('Checking subscriptions...')
         guild = self.bot.guilds[0]
-        vip_role = discord.utils.get(guild.roles, name="VIP")
+        vip_role = discord.utils.get(guild.roles, name='🌟 VIP')
         admin_members = utls.get_admins_and_owners(guild)
         records_updated = 0
         for member in guild.members:

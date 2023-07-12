@@ -132,6 +132,6 @@ def datetime_to_string(dt: datetime) -> str:
     return dt.strftime(DATETIME_FORMAT)
 
 def get_admins_and_owners(guild) -> list:
-    owner_role = discord.utils.get(guild.roles, name="Owner")
-    admin_role = discord.utils.get(guild.roles, name="Admin")
+    owner_role = discord.utils.get(guild.roles, name="👑 Owner")
+    admin_role = discord.utils.get(guild.roles, name="🛡️ Admin")
     return owner_role.members + admin_role.members
