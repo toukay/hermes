@@ -1246,6 +1246,79 @@ class VIPCommand(commands.Cog):
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
+    
+    @discord.slash_command(name='reset-free-trial') 
+    async def reset_free_trial(self, ctx, member: discord.Member, toggle: bool = False):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            # check if user exists in the database and add them if not
+            user, isNew = await utls.get_or_add_member(member)
+
+            member_name = member.name + "#" + member.discriminator
+
+            old_free_trial_used = user.free_trial_used
+
+            if toggle:
+                await ops.toggle_free_trial_user(user)
+                embed = utls.success_embed(title=f'Free trial for {member_name} has been toggled to {"used" if user.free_trial_used else "not used"} by {ctx.author.mention}.')
+            elif user.free_trial_used:
+                await ops.reset_free_trial_user(user)
+                embed = utls.success_embed(title=f'Free trial for {member_name} has been reset by {ctx.author.mention}.')
+            else:
+                embed = utls.warning_embed(title=f'Free trial for {member_name} has not been used yet.')
+            
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
+
+    @discord.slash_command(name='reset-free-trial-all') 
+    async def reset_free_trial_all(self, ctx):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            records_updated = 0
+            for member in ctx.guild.members:
+                # check if user exists in the database and add them if not
+                user, isNew = await utls.get_or_add_member(member)
+                if user.free_trial_used:
+                    await ops.reset_free_trial_user(user)
+                    records_updated += 1
+            
+            embed = utls.success_embed(title=f'Free trial for {records_updated} users has been reset by {ctx.author.mention}.')
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

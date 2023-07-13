@@ -33,6 +33,12 @@ class User(Base):
     
     def __eq__(self, other):
         return type(self) == type(other) and self.id == other.id
+
+    def toggle_free_trial_used(self):
+        self.free_trial_used = not self.free_trial_used
+
+    def reset_free_trial_used(self):
+        self.free_trial_used = False
     
 
 class SubDuration(Base):

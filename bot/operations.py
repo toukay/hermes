@@ -53,6 +53,18 @@ async def add_user(user: User) -> None:
         session.add(user)
         await session.commit()
 
+async def toggle_free_trial_user(user: User) -> None:
+    async with get_session() as session:
+        user.toggle_free_trial_used()
+        session.add(user)
+        await session.commit()
+
+async def reset_free_trial_user(user: User) -> None:
+    async with get_session() as session:
+        user.reset_free_trial_used()
+        session.add(user)
+        await session.commit()
+
 
 # sub duration helpers
 async def get_sub_durations() -> list[SubDuration]:
