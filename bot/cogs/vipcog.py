@@ -1236,10 +1236,7 @@ class VIPCommand(commands.Cog):
                 user, isNew = await utls.get_or_add_member(member)
                 subscription = await ops.get_active_subscription(user)
                 if subscription is not None:
-                    if not subscription.is_expired():
-                        await ops.revoke_subscription(subscription)
-                    else:
-                        await ops.end_subscription(subscription)
+                    await ops.revoke_subscription(subscription)
 
             embed = utls.success_embed('All members with the VIP role have been removed from the role and their active subscriptions have been ended.')
 

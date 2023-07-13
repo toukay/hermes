@@ -142,11 +142,10 @@ async def reduce_subscription(subscription: Subscription, duration: SubDuration)
 async def revoke_subscription(subscription: Subscription) -> tuple[Subscription, datetime]:
     async with get_session() as session:
         original_end_date = subscription.end_date
-        if subscription.end_date > datetime.now():
-            subscription.end_date = datetime.now()
-        if subscription.start_date > datetime.now():
-            subscription.start_date = datetime.now()
-        subscription.active = False
+        if subscription.is_now_active():
+            subscription.end_active_now()
+        if subscription.is_future():
+            subscription.end_future_now()
         session.add(subscription)
         await session.commit()
     return subscription, original_end_date

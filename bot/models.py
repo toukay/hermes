@@ -98,6 +98,15 @@ class Subscription(Base):
     def is_expiring_soon(self, days=1):
         return self.end_date < datetime.now() + timedelta(days=days)
     
+    def end_active_now(self):
+        self.end_date = datetime.now()
+        self.active = False
+
+    def end_future_now(self):
+        self.start_date = datetime.now()
+        self.start_date = datetime.now()
+        self.active = False
+    
 
 class UniqueCode(Base):
     __tablename__ = 'unique_codes'
