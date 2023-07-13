@@ -397,7 +397,10 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=embed_admin)
 
             if not self.silent and not unexpected_error:
-                await member.send(embed=embed_user)
+                try:
+                    await member.send(embed=embed_user)
+                except discord.Forbidden:
+                    logging.error(f"Unable to send message to {member}")
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
@@ -535,7 +538,10 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=embed_admin)
 
             if not self.silent:
-                await member.send(embed=embed_user)
+                try:
+                    await member.send(embed=embed_user)
+                except discord.Forbidden:
+                    logging.error(f"Unable to send message to {member}")
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
@@ -1310,7 +1316,10 @@ class VIPCommand(commands.Cog):
         guild_name = member.guild.name
         # embed = utls.info_embed(title=f'{guild_name} VIP role free trial', description=f'You have been given the VIP role temporarily. You will keep it for 20 minutes, after which it will be removed. However, if you already paid for the VIP role, you will get reinstated automatically.')
         member_embed = utls.info_embed(title=f'تجربة مجانية لدور  MKL-Signals - VIP', description=f'لقد تم منحك دور **VIP** مؤقتًا. ستحتفظ بها لمدة 20 دقائق ، وبعد ذلك ستتم إزالتها. ومع ذلك ، إذا كنت قد دفعت بالفعل مقابل دور **VIP** ، فستتم إعادتك تلقائيًا.')
-        await member.send(embed=member_embed)
+        try:
+            await member.send(embed=member_embed)
+        except discord.Forbidden:
+            logging.error(f"Unable to send message to {member}")
 
         # loop through owners and admins and inform them
         member_name = member.name + "#" + member.discriminator
@@ -1334,7 +1343,11 @@ class VIPCommand(commands.Cog):
             for owner in owner_members:
                 owner_name = owner.name + "#" + owner.discriminator
                 member_embed.add_field(name=f'{owner_name}', value=f'{owner.mention}', inline=False)
-            await member.send(embed=member_embed)
+            
+            try:
+                await member.send(embed=member_embed)
+            except discord.Forbidden:
+                logging.error(f"Unable to send message to {member}")
 
             admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} has had his VIP role removed after the free trial expired. If he wants to keep the VIP role, he will have to contact one of the owners of the server.')
             for owner in owner_members:
@@ -1348,7 +1361,10 @@ class VIPCommand(commands.Cog):
         else:
             # embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired', description=f'Your VIP role free trial has expired, but you have paid for the VIP role, so you will keep it.')
             member_embed = utls.info_embed(title=f'انتهت الفترة التجريبية المجانية لدور  MKL-Signals - VIP ', description=f'انتهت صلاحية الإصدار التجريبي المجاني لدور **VIP** الخاص بك ، لكنك دفعت مقابل دور **VIP** ، لذلك ستحتفظ به.')
-            await member.send(embed=member_embed)
+            try:
+                await member.send(embed=member_embed)
+            except discord.Forbidden:
+                logging.error(f"Unable to send message to {member}")
 
             admin_embed = utls.info_embed(title=f'{guild_name} VIP role free trial expired for {member_name}', description=f'{member.mention} VIP role free trial expired, but he was given a new active subscription or `keep` was used on him, so he will keep the VIP role.')
             for owner in owner_members:
