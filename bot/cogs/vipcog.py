@@ -1316,12 +1316,12 @@ class VIPCommand(commands.Cog):
                     records_updated += 1
             
             embed = utls.success_embed(title=f'Free trial for {records_updated} users has been reset by {ctx.author.mention}.')
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed)
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
-            await ctx.send(embed=utls.error_embed(utls.get_error_message()))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
     @commands.Cog.listener()
