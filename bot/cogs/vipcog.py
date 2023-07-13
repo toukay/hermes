@@ -1334,6 +1334,9 @@ class VIPCommand(commands.Cog):
         if not isNew and user.free_trial_used:
             return
         
+        if not user.free_trial_used:
+            await ops.toggle_free_trial_user(user)
+        
         await member.add_roles(vip_role)
         # send him a private message informing him that he has been given the vip role temporarily as a free-trial, and if he paid he will get reinstaited (in an embed)
         owner_role = discord.utils.get(member.guild.roles, name='👑 Owner')

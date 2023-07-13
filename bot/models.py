@@ -23,7 +23,7 @@ class User(Base):
     def __init__(self, discord_uid, username):
         self.discord_uid = discord_uid
         self.username = username
-        self.free_trial_used = True
+        self.free_trial_used = False
 
     def __repr__(self):
         return f'<User(id={self.id}, discord_uid={self.discord_uid}, username={self.username})>'
