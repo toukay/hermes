@@ -1258,7 +1258,7 @@ class VIPCommand(commands.Cog):
         user, isNew = await utls.get_or_add_member(member)
 
         # check if member is in the database, if he is don't give hime vip role
-        if not isNew:
+        if not isNew and user.free_trial_used:
             return
         
         await member.add_roles(vip_role)
