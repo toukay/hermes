@@ -33,6 +33,7 @@ class NewMemberButtonsView(discord.ui.View):
 
 class VIPCommand(commands.Cog):
     def __init__(self, bot):
+        ops.init_db()
         self.bot = bot
         self.bot.remove_command('help')
         self.perm_vips = {}

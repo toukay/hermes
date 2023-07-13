@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from sqlalchemy import select, and_, func
+from sqlalchemy import create_engine, select, and_, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from contextlib import asynccontextmanager
@@ -8,10 +8,14 @@ import shutil
 import os
 import gzip
 
-from models import User, SubDuration, Subscription, UniqueCode, RedeemedCode, Grant, Revoke
+from models import Base, User, SubDuration, Subscription, UniqueCode, RedeemedCode, Grant, Revoke
 
 async_engine = create_async_engine('sqlite+aiosqlite:///database.db')
 async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
+
+def init_db():
+    sync_engine = create_engine('sqlite:///database.db')
+    Base.metadata.create_all(bind=sync_engine)
 
 @asynccontextmanager
 async def get_session():

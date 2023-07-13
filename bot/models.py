@@ -11,6 +11,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     discord_uid = Column(Integer, unique=True, nullable=False)
     username = Column(String, nullable=False)
+    free_trial_used = Column(Boolean, default=True)
 
     subscriptions = relationship('Subscription',  foreign_keys='Subscription.user_id', back_populates='user')
     unique_codes = relationship('UniqueCode',  foreign_keys='UniqueCode.admin_id', back_populates='admin')
@@ -22,6 +23,7 @@ class User(Base):
     def __init__(self, discord_uid, username):
         self.discord_uid = discord_uid
         self.username = username
+        self.free_trial_used = True
 
     def __repr__(self):
         return f'<User(id={self.id}, discord_uid={self.discord_uid}, username={self.username})>'
