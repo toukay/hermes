@@ -408,64 +408,86 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
-    # @discord.slash_command(name='grantAll', description='Grants a VIP subscription to all members.')
-    # async def grantAll(self, ctx, duration: str = ''):
-    #     try:
-    #         # make sure the command is not private
-    #         if ctx.guild is None:
-    #             await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
-    #             return
+    @discord.slash_command(name='grantall', description='Grants a VIP subscription to all members.')
+    async def grant_all(self, ctx, duration: str):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
 
-    #         # check if the user has the administrator permission
-    #         if not ctx.author.guild_permissions.administrator:
-    #             await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
-    #             return
+            # check if the user has the administrator permission
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
             
-    #         # check if admin exists in the database and add them if not
-    #         admin, isNew = await utls.get_or_add_member(ctx.author)
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
 
-    #         # check if the duration is valid
-    #         duration, err_msg = await utls.validate_duration(duration)
-    #         if err_msg:
-    #             await ctx.respond(embed=utls.warning_embed(err_msg))
-    #             return
+            # check if the duration is valid
+            duration, err_msg = await utls.validate_duration(duration)
+            if err_msg:
+                await ctx.respond(embed=utls.warning_embed(err_msg))
+                return
 
-    #         # get all members
-    #         members = ctx.guild.members
+            # get all members
+            members = ctx.guild.members
+            admin_members = utls.get_admins_and_owners(ctx.guild)
 
-    #         # grant VIP subscription to all members
-    #         for member in members:
-    #             # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
-    #             original_end_date = None
-    #             subscription = await ops.get_active_subscription(member)
-    #             extension = False
-    #             if subscription and subscription.is_now_active():
-    #                 extension = True
-    #                 subscription, original_end_date = await ops.extend_subscription(subscription, duration)
-    #             else:
-    #                 subscription = await ops.create_subscription(member, duration)
+            # grant VIP subscription to all members
+            for member in members:
+                # Skip bots and admins
+                if member == ctx.bot.user or member.bot:
+                    continue
+                if member in admin_members:
+                    continue
+                # check if user exists in the database and add them if not
+                user, isNew = await utls.get_or_add_member(member)
+                # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
+                original_end_date = None
+                subscription = await ops.get_active_subscription(user)
+                extension = False
+                if subscription and subscription.is_now_active():
+                    extension = True
+                    subscription, original_end_date = await ops.extend_subscription(subscription, duration)
+                else:
+                    subscription = await ops.create_subscription(user, duration)
 
-    #             # Change user role to VIP if not already
-    #             if subscription.is_now_active():
-    #                 # Keep the member's VIP role from the free trila
-    #                 if member.id in self.perm_vips:
-    #                     self.perm_vips[member.id] = True
+                # Change user role to VIP if not already
+                vipStatus = 0
+                if subscription.is_now_active():
+                    # Keep the member's VIP role from the free trila
+                    if member.id in self.perm_vips:
+                        self.perm_vips[member.id] = True
 
-    #                 await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+                    if not discord.utils.get(member.roles, name='🌟 VIP'):
+                        vipStatus = 1
+                        await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+                    else:
+                        vipStatus = 2
+                else:
+                    if discord.utils.get(member.roles, name='🌟 VIP'):
+                        vipStatus = -1
+                        await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
-    #             if original_end_date is None:
-    #                 original_end_date = subscription.end_date
+                if original_end_date is None:
+                    original_end_date = subscription.end_date
 
-    #             # add the grant to the database
-    #             grant_date = datetime.now()
-    #             action_type = 'extend' if extension else 'grant'
-    #             grant = mdls.Grant(grant_date, original_end_date, subscription.end_date, duration, subscription, admin, member, action_type=action_type)
-    #             await ops.add_grant(grant)
+                # add the grant to the database
+                grant_date = datetime.now()
+                action_type = 'extend' if extension else 'grant'
+                grant = mdls.Grant(grant_date, original_end_date, subscription.end_date, duration, subscription, admin, user, action_type=action_type)
+                await ops.add_grant(grant)
+            
+            embed = utls.success_embed(title='Grant All', description=f'All members have been granted a new VIP subscription or extended their existing one:')
+            embed.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
 
-    #     except Exception as e:
-    #         logging.error(f"An error occurred: {str(e)}")
-    #         await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
-    #         await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
     
     @discord.slash_command(name='revoke', aliases=['reduce', 'curse']) 
@@ -1272,8 +1294,15 @@ class VIPCommand(commands.Cog):
             embed = utls.info_embed(title='Resetting free trials for all server members...')
             await ctx.send(embed=embed)
 
+            admin_members = utls.get_admins_and_owners(ctx.guild)
+
             records_updated = 0
             for member in ctx.guild.members:
+                # Skip bots and admins
+                if member == ctx.bot.user or member.bot:
+                    continue
+                if member in admin_members:
+                    continue
                 # check if user exists in the database and add them if not
                 user, isNew = await utls.get_or_add_member(member)
                 if user.free_trial_used:
@@ -1420,6 +1449,11 @@ class VIPCommand(commands.Cog):
         admin_members = utls.get_admins_and_owners(guild)
         records_updated = 0
         for member in guild.members:
+            # Skip bots and admins
+            if member.bot:
+                continue
+            if member in admin_members:
+                continue
             user, isNew = await utls.get_or_add_member(member)
             subscription = await ops.get_active_subscription(user)
             member_name = member.name + "#" + member.discriminator

@@ -128,6 +128,19 @@ async def extend_subscription(subscription: Subscription, start_date: datetime, 
 
     return subscription, original_end_date
 
+async def extend_subscription(subscription: Subscription, duration: SubDuration) -> tuple[Subscription, datetime]:
+    async with get_session() as session:
+        original_end_date = subscription.end_date
+        unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
+        days_to_add = duration.duration * unit
+
+        subscription.end_date += timedelta(days=days_to_add)
+                
+        session.add(subscription)
+        await session.commit()
+
+    return subscription, original_end_date
+
 async def add_subscription(subscription: Subscription) -> None:
     async with get_session() as session:
         session.add(subscription)
@@ -138,6 +151,8 @@ async def create_subscription(user: User, duration: SubDuration) -> Subscription
         unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
         duration_days = duration.duration * unit
         subscription = Subscription(datetime.now(), datetime.now() + timedelta(days=duration_days), user)
+        if subscription.is_now_active():
+            subscription.active = True
         session.add(subscription)
         await session.commit()
     return subscription
