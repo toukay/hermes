@@ -3,6 +3,7 @@ from sqlalchemy import create_engine, select, and_, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from contextlib import asynccontextmanager
+import logging
 import sqlite3
 import shutil
 import os
@@ -86,26 +87,20 @@ async def get_sub_duration_by_code(code: UniqueCode) -> SubDuration:
 # subscription helpers
 async def get_active_subscriptions() -> list[Subscription]:
     async with get_session() as session:
-        now = func.now()
+        now = datetime.now()
         result = await session.execute(select(Subscription).filter(and_(Subscription.start_date <= now, Subscription.end_date >= now)))
     return result.scalars().all()
 
 async def get_active_subscription(user: User) -> Subscription:
     async with get_session() as session:
-        now = func.now()
+        now = datetime.now()
         result = await session.execute(
             select(Subscription)
-            .filter(and_(Subscription.user_id == user.id, Subscription.start_date <= now, Subscription.end_date >= now))
+            .filter(and_(Subscription.user_id == user.id, Subscription.start_date <= now, Subscription.end_date > now))
             .order_by(Subscription.start_date.desc())
         )
         subscription = result.scalars().first()
-        
-        if subscription:
-            if subscription.is_expired():
-                subscription.active = False
-                session.add(subscription)
-                await session.commit()
-                return None
+            
         return subscription
 
 async def get_subscriptions(user: User) -> list[Subscription]:
@@ -113,13 +108,24 @@ async def get_subscriptions(user: User) -> list[Subscription]:
         result = await session.execute(select(Subscription).filter(Subscription.user_id == user.id))
     return result.scalars().all()
 
-async def extend_subscription(subscription: Subscription, duration: SubDuration) -> tuple[Subscription, datetime]:
+async def extend_subscription(subscription: Subscription, start_date: datetime, duration: SubDuration) -> tuple[Subscription, datetime]:
     async with get_session() as session:
         original_end_date = subscription.end_date
         unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
-        subscription.end_date += timedelta(days=duration.duration * unit)
+        days_to_add = duration.duration * unit
+        date_difference = (subscription.end_date - start_date).days
+        if date_difference < 0:
+            # If the existing end date is earlier than the start date, add the whole duration
+            subscription.end_date += timedelta(days=days_to_add)
+        else:
+            # If the existing end date is later than the start date, add the remaining duration
+            remaining_days = days_to_add - date_difference
+            if remaining_days > 0:
+                subscription.end_date += timedelta(days=remaining_days)
+                
         session.add(subscription)
         await session.commit()
+
     return subscription, original_end_date
 
 async def add_subscription(subscription: Subscription) -> None:
@@ -130,17 +136,19 @@ async def add_subscription(subscription: Subscription) -> None:
 async def create_subscription(user: User, duration: SubDuration) -> Subscription:
     async with get_session() as session:
         unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
-        subscription = Subscription(datetime.now(), datetime.now() + timedelta(days=duration.duration * unit), user)
+        duration_days = duration.duration * unit
+        subscription = Subscription(datetime.now(), datetime.now() + timedelta(days=duration_days), user)
         session.add(subscription)
         await session.commit()
     return subscription
 
-async def set_create_subscription(user: User, start_date: datetime, duration_days: int) -> Subscription:
+async def set_create_subscription(user: User, start_date: datetime, duration: SubDuration) -> Subscription:
     async with get_session() as session:
+        unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
+        duration_days = duration.duration * unit
         subscription = Subscription(start_date, start_date + timedelta(days=duration_days), user)
-        # check the start date is not in the past or in the future and change subscription.active accordingly
-        if subscription.start_date < datetime.now() or subscription.start_date > datetime.now():
-            subscription.active = False
+        if subscription.is_now_active():
+            subscription.active = True
         session.add(subscription)
         await session.commit()
     return subscription

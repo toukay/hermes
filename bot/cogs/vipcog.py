@@ -279,7 +279,7 @@ class VIPCommand(commands.Cog):
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
 
-    @discord.slash_command(name='grant', aliases=['bless'], description='Grants a VIP subscription to a user.')
+    @discord.slash_command(name='grant', aliases=['setsub', 'extend', 'bless'], description='[admin only] Grants a VIP subscription to a user.')
     async def grant(self, ctx, member: discord.Member, start_date: str = datetime.today().strftime("%Y-%m-%d"), duration: str = '1m'):
         try:
             # make sure the command is not private
@@ -297,11 +297,8 @@ class VIPCommand(commands.Cog):
 
             # check if user exists in the database and add them if not
             user, isNew = await utls.get_or_add_member(member)
-
-            # TODO 1: test if you can leave start_date as datetime (maybe can result in a calendar in discord)
-            # TODO 2: further compare the setsub and grant to make sure grant have all the necessary functionalities (before removing the real setsub)
-            # TODO 3: make granting and extending subscription work by date (e.g 1 month from start date 2023-05-10 => end date: 2023-06-10, regardless of month duration)
-            # TODO 4: remove setsub command and make the name as alias for grant
+            
+            # TODO 1: make granting and extending subscription work by date (e.g 1 month from start date 2023-05-10 => end date: 2023-06-10, regardless of month duration)
 
             # convert subscription start date to datetime
             start_date = start_date.split()[0].strip()
@@ -317,19 +314,29 @@ class VIPCommand(commands.Cog):
             original_end_date = None
             subscription = await ops.get_active_subscription(user)
             extension = False
-            if subscription and subscription.is_now_active():
+            if subscription and subscription.is_now_active() and subscription.end_date >= start_date:
                 extension = True
-                subscription, original_end_date = await ops.extend_subscription(subscription, duration)
+                subscription, original_end_date = await ops.extend_subscription(subscription, start_date, duration)
             else:
-                subscription = await ops.create_subscription(user, duration)
+                subscription = await ops.set_create_subscription(user, start_date, duration)
 
             # Change user role to VIP if not already
+            vipStatus = 0
             if subscription.is_now_active():
                 # Keep the member's VIP role from the free trila
                 if member.id in self.perm_vips:
                     self.perm_vips[member.id] = True
 
-                await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+                if not discord.utils.get(member.roles, name='🌟 VIP'):
+                    vipStatus = 1
+                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+                else:
+                    vipStatus = 2
+            else:
+                if discord.utils.get(member.roles, name='🌟 VIP'):
+                    vipStatus = -1
+                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+
 
             if original_end_date is None:
                 original_end_date = subscription.end_date
@@ -340,32 +347,56 @@ class VIPCommand(commands.Cog):
             grant = mdls.Grant(grant_date, original_end_date, subscription.end_date, duration, subscription, admin, user, action_type=action_type)
             await ops.add_grant(grant)
 
+            unexpected_error = False
+
             # send success message to admin and user
             quiet_mode = 'Enabled, member will not be notified' if self.silent else 'Disabled, member will be notified'
             if extension:
+                duration_str = f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}"
+                if utls.datetime_to_string(original_end_date) == utls.datetime_to_string(subscription.end_date):
+                    duration_str = "0 days"
+
                 embed_admin = utls.success_embed(title='Extension', description=f'Member **{member.mention}**\'s subscription has been extended:')
-                embed_admin.add_field(name='By (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_admin.add_field(name='By (duration):', value=duration_str, inline=False)
                 embed_admin.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_admin.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
-                embed_admin.add_field(name='Quiet mode:', value=quiet_mode, inline=False)
 
                 embed_user = utls.success_embed(title='Extension', description=f'Your subscription has been extended:')
-                embed_user.add_field(name='By (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_user.add_field(name='By (duration):', value=duration_str, inline=False)
                 embed_user.add_field(name='From (old end-date):', value=utls.datetime_to_string(original_end_date), inline=False)
                 embed_user.add_field(name='To (new end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
-            else:
+            elif subscription.is_now_active():
                 embed_admin = utls.success_embed(title='Activation', description=f'Member **{member.mention}**\'s subscription has been actiaved:')
                 embed_admin.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_admin.add_field(name='From (start-sate):', value=utls.datetime_to_string(start_date), inline=False)
                 embed_admin.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
-                embed_admin.add_field(name='Quiet mode:', value=quiet_mode, inline=False)
 
                 embed_user = utls.success_embed(title='Activation', description=f'Your subscription has been actiaved:')
                 embed_user.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_user.add_field(name='From (start-sate):', value=utls.datetime_to_string(start_date), inline=False)
                 embed_user.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
+            elif subscription.is_future(): # return datetime.now() <= self.start_date <= self.end_date
+                embed_admin = utls.success_embed(title='Future Subscription', description=f'Member **{member.mention}**\'s future subscription has been set:')
+                embed_admin.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_admin.add_field(name='From (start-sate):', value=utls.datetime_to_string(start_date), inline=False)
+                embed_admin.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
+
+                embed_user = utls.success_embed(title='Future Subscription', description=f'Your future subscription has been set:')
+                embed_user.add_field(name='For (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+                embed_user.add_field(name='From (start-sate):', value=utls.datetime_to_string(start_date), inline=False)
+                embed_user.add_field(name='Until (end-date):', value=utls.datetime_to_string(subscription.end_date), inline=False)
+            else: # something wrong happened
+                embed_admin = utls.error_embed(title='Somthing wrong happened', description=f'Member **{member.mention}**\'s subscription could not be set properly')
+                unexpected_error = True
+                
+            if not unexpected_error:
+                embed_admin.add_field(name='Quiet mode:', value=quiet_mode, inline=False)
+                embed_admin.add_field(name='Current Status:', value='Active' if subscription.is_now_active() else 'Inactive', inline=False)
+                embed_admin.add_field(name='VIP Role:', value='Added!' if vipStatus == 1 else 'Removed!' if vipStatus == -1 else 'Not changed (Not-VIP)' if vipStatus == 0 else 'Not changed (Already VIP)', inline=False)
 
             await ctx.respond(embed=embed_admin)
 
-            if not self.silent:
+            if not self.silent and not unexpected_error:
                 await member.send(embed=embed_user)
 
         except Exception as e:
@@ -778,78 +809,6 @@ class VIPCommand(commands.Cog):
 
             await ctx.respond(embed=embed)
 
-        except Exception as e:
-            logging.error(f"An error occurred: {str(e)}")
-            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
-            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
-
-
-    @discord.slash_command(name="setsub", description="[admin only] set unregistered VIP subscription by providing start date and duration") # !setsub @user 2023-05-010 1m
-    async def set_subscription(self, ctx, member: discord.Member, start_date: str, duration_days: int):
-        try:
-            # make sure the command is not private
-            if ctx.guild is None:
-                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
-                return
-            
-            # check if the user has the administrator permission
-            if not ctx.author.guild_permissions.administrator:
-                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
-                return
-            
-            # check if admin exists in the database and add them if not
-            admin, isNew = await utls.get_or_add_member(ctx.author)
-
-            # check if admin exists in the database and add them if not
-            user, isNew = await utls.get_or_add_member(member)
-
-            # check if the user already has an active subscription
-            subscription = await ops.get_active_subscription(user)
-            if subscription:
-                await ctx.respond(embed=utls.warning_embed('This user already has an active subscription.'))
-                return
-            
-
-            # convert subscription start date to datetime
-            start_date = start_date.split()[0].strip()
-            start_date = datetime.strptime(start_date, "%Y-%m-%d") # e.g. start_date = 2023-05-10
-
-
-            # check if the duration is valid
-            if duration_days < 1:
-                await ctx.respond(embed=utls.warning_embed('Duration days must be greater than 0.'))
-                return
-
-            # create the subscription
-            subscription = await ops.set_create_subscription(user, start_date, duration_days)
-            
-            vipStatus = 0
-            if subscription.is_now_active():
-                # Keep the member's VIP role from the free trila
-                if member.id in self.perm_vips:
-                    self.perm_vips[member.id] = True
-
-                if not discord.utils.get(member.roles, name='🌟 VIP'):
-                    vipStatus = 1
-                    await member.add_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
-                else:
-                    vipStatus = 2
-            else:
-                if discord.utils.get(member.roles, name='🌟 VIP'):
-                    vipStatus = -1
-                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
-
-
-            # send success message # success_embed(title: str, description: str = '')
-            embed = utls.success_embed(title=f'Subscription force set for {user.username}.', description=f'Subscription created for {member.mention}')
-            embed.add_field(name='Start date:', value=utls.datetime_to_string(subscription.start_date), inline=False)
-            embed.add_field(name='End date:', value=utls.datetime_to_string(subscription.end_date), inline=False)
-            embed.add_field(name='Duration:', value=f'{duration_days} days', inline=False)
-            embed.add_field(name='Current Status:', value='Active' if subscription.is_now_active() else 'Inactive', inline=False)
-            embed.add_field(name='VIP Role:', value='Added!' if vipStatus == 1 else 'Removed!' if vipStatus == -1 else 'Not changed (Not-VIP)' if vipStatus == 0 else 'Not changed (Already VIP)', inline=False)
-            embed.add_field(name='Warning Note:', value='No admin and no new Grant record will be recorded for this subscription. For New subscriptions Use Grant instead', inline=False)
-            await ctx.respond(embed=embed)
-        
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))

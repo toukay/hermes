@@ -84,6 +84,7 @@ class Subscription(Base):
         self.start_date = start_date
         self.end_date = end_date
         self.user = user
+        self.active = False
 
     def __repr__(self):
         return f'<Subscription(id={self.id}, start_date={self.start_date}, end_date={self.end_date}, user_id={self.user_id})>'
@@ -95,13 +96,13 @@ class Subscription(Base):
         return type(self) == type(other) and self.id == other.id
     
     def is_expired(self):
-        return self.end_date < datetime.now()
+        return self.end_date <= datetime.now()
     
     def is_future(self):
-        return datetime.now() <= self.start_date <= self.end_date
+        return datetime.now() <= self.start_date < self.end_date
 
     def is_now_active(self):
-        return self.start_date <= datetime.now() <= self.end_date
+        return self.start_date <= datetime.now() < self.end_date
     
     def is_expiring_soon(self, days=1):
         return self.end_date < datetime.now() + timedelta(days=days)
