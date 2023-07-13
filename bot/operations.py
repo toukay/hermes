@@ -77,8 +77,13 @@ async def get_active_subscriptions() -> list[Subscription]:
 async def get_active_subscription(user: User) -> Subscription:
     async with get_session() as session:
         now = func.now()
-        result = await session.execute(select(Subscription).filter(and_(Subscription.user_id == user.id, Subscription.start_date <= now, Subscription.end_date >= now)))
-        subscription = result.scalar_one_or_none()
+        result = await session.execute(
+            select(Subscription)
+            .filter(and_(Subscription.user_id == user.id, Subscription.start_date <= now, Subscription.end_date >= now))
+            .order_by(Subscription.start_date.desc())
+        )
+        subscription = result.scalars().first()
+        
         if subscription:
             if subscription.is_expired():
                 subscription.active = False
