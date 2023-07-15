@@ -316,7 +316,7 @@ class VIPCommand(commands.Cog):
             extension = False
             if subscription and subscription.is_now_active() and subscription.end_date >= start_date:
                 extension = True
-                subscription, original_end_date = await ops.extend_subscription(subscription, start_date, duration)
+                subscription, original_end_date = await ops.set_extend_subscription(subscription, start_date, duration)
             else:
                 subscription = await ops.set_create_subscription(user, start_date, duration)
 

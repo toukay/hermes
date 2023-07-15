@@ -108,7 +108,7 @@ async def get_subscriptions(user: User) -> list[Subscription]:
         result = await session.execute(select(Subscription).filter(Subscription.user_id == user.id))
     return result.scalars().all()
 
-async def extend_subscription(subscription: Subscription, start_date: datetime, duration: SubDuration) -> tuple[Subscription, datetime]:
+async def set_extend_subscription(subscription: Subscription, start_date: datetime, duration: SubDuration) -> tuple[Subscription, datetime]:
     async with get_session() as session:
         original_end_date = subscription.end_date
         unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
