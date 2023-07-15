@@ -434,6 +434,8 @@ class VIPCommand(commands.Cog):
             members = ctx.guild.members
             admin_members = utls.get_admins_and_owners(ctx.guild)
 
+            await ctx.defer()
+
             # grant VIP subscription to all members
             for member in members:
                 # Skip bots and admins
