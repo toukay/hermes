@@ -644,14 +644,14 @@ class VIPCommand(commands.Cog):
                         records_updated += 1
 
                 
-                if subscription.is_expired() and discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
-                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+                    if subscription.is_expired() and discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
+                        await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
 
-                # # add the revoke to the database
-                # revoke_date = datetime.now()
-                # action_type = 'reduce' if duration else 'revoke'
-                # revoke = mdls.Revoke(revoke_date, original_end_date, subscription.end_date, subscription, admin, user, duration=duration, action_type=action_type)
-                # await ops.add_revoke(revoke)
+                    # # add the revoke to the database
+                    # revoke_date = datetime.now()
+                    # action_type = 'reduce' if duration else 'revoke'
+                    # revoke = mdls.Revoke(revoke_date, original_end_date, subscription.end_date, subscription, admin, user, duration=duration, action_type=action_type)
+                    # await ops.add_revoke(revoke)
 
             embed = utls.success_embed(title='Revoke All', description=f'{records_updated} members have been revoked or reduced their VIP subscription.')
             if duration:
