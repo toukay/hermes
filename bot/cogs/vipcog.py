@@ -621,26 +621,27 @@ class VIPCommand(commands.Cog):
                 original_end_date = None
                 subscription = await ops.get_active_subscription(user)
                 
-
-                if duration:
-                    if end_date: 
-                        if end_date == subscription.end_date:
+                
+                if subscription:
+                    if duration:
+                        if end_date: 
+                            if end_date == subscription.end_date:
+                                # reduce the user's active subscription by reducing the end_date by the duration
+                                subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
+                                records_updated += 1
+                        else:
                             # reduce the user's active subscription by reducing the end_date by the duration
                             subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
                             records_updated += 1
                     else:
-                        # reduce the user's active subscription by reducing the end_date by the duration
-                        subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
+                        if end_date:
+                            if end_date == subscription.end_date:
+                                # remove the user's active subscription by updating the end_date to now
+                                subscription, original_end_date = await ops.revoke_subscription(subscription)
+                                records_updated += 1
+                        # remove the user's active subscription by updating the end_date to now
+                        subscription, original_end_date = await ops.revoke_subscription(subscription)
                         records_updated += 1
-                else:
-                    if end_date:
-                        if end_date == subscription.end_date:
-                            # remove the user's active subscription by updating the end_date to now
-                            subscription, original_end_date = await ops.revoke_subscription(subscription)
-                            records_updated += 1
-                    # remove the user's active subscription by updating the end_date to now
-                    subscription, original_end_date = await ops.revoke_subscription(subscription)
-                    records_updated += 1
 
                 
                 if subscription.is_expired() and discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
