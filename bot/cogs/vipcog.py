@@ -572,6 +572,99 @@ class VIPCommand(commands.Cog):
             await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
             await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
 
+    
+    @discord.slash_command(name='revokeall', aliases=['reduce', 'curse']) 
+    async def revoke_all(self, ctx, duration: str = '', end_date: str = ''):
+        try:
+            # make sure the command is not private
+            if ctx.guild is None:
+                await ctx.respond(embed=utls.warning_embed('This command can not be used in private messages.'))
+                return
+            
+            # check if the user has the role of admin or owner (amins can not claim codes)
+            if not ctx.author.guild_permissions.administrator:
+                await ctx.respond(embed=utls.warning_embed('You are not allowed to use this command.'))
+                return
+            
+            # check if admin exists in the database and add them if not
+            admin, isNew = await utls.get_or_add_member(ctx.author)
+
+            if duration:
+                # check if the duration is valid
+                duration, err_msg = await utls.validate_duration(duration)
+                if err_msg:
+                    await ctx.respond(embed=utls.warning_embed(err_msg))
+                    return
+                
+            if end_date:
+                # convert end date to datetime
+                end_date = end_date.split()[0].strip()
+                end_date = datetime.strptime(end_date, "%Y-%m-%d") # e.g. start_date = 2023-05-10
+
+            # get all members
+            members = ctx.guild.members
+            admin_members = utls.get_admins_and_owners(ctx.guild)
+
+            await ctx.defer()
+
+            records_updated = 0
+            # revoke or reduce VIP subscription to all members or that match the end_date
+            for member in members:
+                # Skip bots and admins
+                if member == ctx.bot.user or member.bot:
+                    continue
+                if member in admin_members:
+                    continue
+                # check if user exists in the database and add them if not
+                user, isNew = await utls.get_or_add_member(member)
+                # check if the user already has a subscription and if so, if end_date is not expired yet and still active, then update the end_date, otherwise insert a new subscription
+                original_end_date = None
+                subscription = await ops.get_active_subscription(user)
+                
+
+                if duration:
+                    if end_date: 
+                        if end_date == subscription.end_date:
+                            # reduce the user's active subscription by reducing the end_date by the duration
+                            subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
+                            records_updated += 1
+                    else:
+                        # reduce the user's active subscription by reducing the end_date by the duration
+                        subscription, original_end_date = await ops.reduce_subscription(subscription, duration)
+                        records_updated += 1
+                else:
+                    if end_date:
+                        if end_date == subscription.end_date:
+                            # remove the user's active subscription by updating the end_date to now
+                            subscription, original_end_date = await ops.revoke_subscription(subscription)
+                            records_updated += 1
+                    # remove the user's active subscription by updating the end_date to now
+                    subscription, original_end_date = await ops.revoke_subscription(subscription)
+                    records_updated += 1
+
+                
+                if subscription.is_expired() and discord.utils.get(member.roles, name='🌟 VIP') and self.role_change_mode:
+                    await member.remove_roles(discord.utils.get(ctx.guild.roles, name='🌟 VIP'))
+
+                # # add the revoke to the database
+                # revoke_date = datetime.now()
+                # action_type = 'reduce' if duration else 'revoke'
+                # revoke = mdls.Revoke(revoke_date, original_end_date, subscription.end_date, subscription, admin, user, duration=duration, action_type=action_type)
+                # await ops.add_revoke(revoke)
+
+            embed = utls.success_embed(title='Revoke All', description=f'{records_updated} members have been revoked or reduced their VIP subscription.')
+            if duration:
+                embed.add_field(name='By (duration):', value=f"{duration.duration} {duration.unit}{'s' if duration.duration > 1 else ''}", inline=False)
+            if end_date:
+                embed.add_field(name='With end_date:', value=utls.datetime_to_string(end_date), inline=False)
+
+            await ctx.respond(embed=embed)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            await self.send_private_error_notification(ctx.author.name, ctx.command.name, str(e))
+            await ctx.respond(embed=utls.error_embed(utls.get_error_message()))
+
 
     @discord.slash_command(name='status', aliases=['check', '🌟 VIP'])
     async def status(self, ctx):

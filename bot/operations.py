@@ -172,7 +172,8 @@ async def reduce_subscription(subscription: Subscription, duration: SubDuration)
     async with get_session() as session:
         original_end_date = subscription.end_date
         unit = 1 if duration.unit == 'day' else 30 if duration.unit == 'month' else 0
-        subscription.end_date = max(subscription.end_date - timedelta(days=duration.duration * unit), datetime.now())
+        days_to_reduce = duration.duration * unit
+        subscription.end_date = max(subscription.end_date - timedelta(days=days_to_reduce), datetime.now())
         subscription.active = subscription.end_date > datetime.now()
         session.add(subscription)
         await session.commit()
